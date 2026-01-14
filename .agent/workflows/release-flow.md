@@ -26,11 +26,12 @@ Pregunta al usuario si desea continuar con el despliegue a producción.
 **Objetivo**: Verificar build y confirmar despliegue.
 
 ### 4. 📝 Fase de Registro
-**Ejecuta**: `/obsidian-log`
-**Objetivo**: Guardar un registro permanente de este lanzamiento en Obsidian.
+**Ejecuta**: `/obsidian-log` con tipo `deploy`
+**Objetivo**: Guardar un registro permanente de este lanzamiento en `/graphicai/deploys/`.
 
 ## Instrucciones para el Agente Principal
 Cuando ejecutes este workflow:
 1. Llama a cada sub-agente (leyendo su archivo .md y siguiendo sus instrucciones).
 2. Mantén el contexto entre agentes (pasa el mensaje de commit al agente de Obsidian, etc.).
 3. Si un paso falla, DETÉN el proceso y pide ayuda al usuario.
+4. En la fase de registro, asegúrate de pasar `tipo: deploy` al ObsidianAgent.

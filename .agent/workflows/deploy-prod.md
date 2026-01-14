@@ -31,3 +31,6 @@ PREGUNTA al usuario:
 ## Output
 - Estado del build (Éxito/Fallo).
 - URL del despliegue (si está disponible).
+
+## Post-Deploy
+Después de un deploy exitoso, llama a `/obsidian-log` con tipo `deploy` para documentar el despliegue en `/graphicai/deploys/`.
