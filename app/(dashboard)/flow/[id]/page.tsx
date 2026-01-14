@@ -1,37 +1,36 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import FlowDiagram from '@/components/flow/FlowDiagram';
 import { Node, Edge } from '@xyflow/react';
 
-interface FlowPageProps {
-    params: {
-        id: string;
-    };
-}
-
-export default function FlowPage({ params }: FlowPageProps) {
+export default function FlowPage() {
     const router = useRouter();
+    const params = useParams();
+    // Handle potential array from useParams
+    const id = Array.isArray(params?.id) ? params.id[0] : params?.id;
+
     const [loading, setLoading] = useState(true);
     const [flowName, setFlowName] = useState('');
     const [nodes, setNodes] = useState<Node[]>([]);
     const [edges, setEdges] = useState<Edge[]>([]);
 
     useEffect(() => {
-        fetchFlow();
-    }, [params.id]);
+        if (id) fetchFlow();
+    }, [id]);
 
     const fetchFlow = async () => {
         try {
+            if (!id) return;
             // Fetch flow metadata
-            const flowResponse = await fetch(`/api/flows/${params.id}`);
+            const flowResponse = await fetch(`/api/flows/${id}`);
             const flowData = await flowResponse.json();
             setFlowName(flowData.flow.name);
 
             // Fetch flow data (nodes and edges)
-            const dataResponse = await fetch(`/api/flows/${params.id}/data`);
+            const dataResponse = await fetch(`/api/flows/${id}/data`);
             const data = await dataResponse.json();
             setNodes(data.nodes || []);
             setEdges(data.edges || []);
@@ -44,7 +43,8 @@ export default function FlowPage({ params }: FlowPageProps) {
 
     const handleSave = async (nodes: Node[], edges: Edge[]) => {
         try {
-            await fetch(`/api/flows/${params.id}/data`, {
+            if (!id) return;
+            await fetch(`/api/flows/${id}/data`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ nodes, edges }),
@@ -85,7 +85,7 @@ export default function FlowPage({ params }: FlowPageProps) {
 
             {/* Flow Diagram */}
             <FlowDiagram
-                flowId={params.id}
+                flowId={id as string}
                 initialNodes={nodes}
                 initialEdges={edges}
                 onSave={handleSave}

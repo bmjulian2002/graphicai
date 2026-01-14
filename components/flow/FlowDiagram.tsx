@@ -271,7 +271,8 @@ const LLMNode = ({ data, selected }: NodeProps) => {
 
     const ConsumptionBadge = (
         <div className="flex flex-col items-end gap-1">
-            {data.userHasFreeTier && (
+            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+            {(data as any).userHasFreeTier && (
                 <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-medium bg-cyan-50 text-cyan-700 border border-cyan-200 dark:bg-cyan-900/20 dark:text-cyan-300 dark:border-cyan-800">
                     <Zap className="w-2.5 h-2.5 fill-current" />
                     <span>Free</span>
@@ -381,7 +382,7 @@ const NodeDetailSidebar = ({
 
                 <div className="p-6 flex-1 overflow-y-auto custom-scrollbar">
                     <div className="text-sm text-gray-600 dark:text-gray-400">
-                        Tipo: {node.data.entityType || 'Unknown'}
+                        Tipo: {String((node.data as any).entityType || 'Unknown')}
                     </div>
                 </div>
 

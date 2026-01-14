@@ -4,9 +4,10 @@ import { createServerClient } from '@/lib/supabase/server';
 // GET flow data (nodes and edges)
 export async function GET(
     req: Request,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const { id } = await params;
         const supabase = createServerClient();
 
         const {
@@ -21,10 +22,10 @@ export async function GET(
         const { data: flow, error } = await supabase
             .from('flows')
             .select(`
-        *,
-        flow_data (*)
-      `)
-            .eq('id', params.id)
+                *,
+                flow_data (*)
+            `)
+            .eq('id', id)
             .eq('user_id', user.id)
             .single();
 
@@ -35,7 +36,10 @@ export async function GET(
             );
         }
 
-        const flowData = Array.isArray(flow.flow_data) ? flow.flow_data[0] : flow.flow_data;
+        // Explicitly cast or handle the joined data to avoid 'never' type error
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const flowWithData = flow as any;
+        const flowData = Array.isArray(flowWithData.flow_data) ? flowWithData.flow_data[0] : flowWithData.flow_data;
 
         return NextResponse.json({
             nodes: flowData?.nodes_data || [],
@@ -53,9 +57,10 @@ export async function GET(
 // PUT update flow data (nodes and edges)
 export async function PUT(
     req: Request,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const { id } = await params;
         const supabase = createServerClient();
 
         const {
@@ -73,7 +78,7 @@ export async function PUT(
         const { data: flow, error: flowError } = await supabase
             .from('flows')
             .select('id')
-            .eq('id', params.id)
+            .eq('id', id)
             .eq('user_id', user.id)
             .single();
 
@@ -85,13 +90,13 @@ export async function PUT(
         }
 
         // Update flow data (upsert)
-        const { error: updateError } = await supabase
-            .from('flow_data')
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { error: updateError } = await (supabase.from('flow_data' as any) as any)
             .update({
                 nodes_data: nodes,
                 edges_data: edges,
             })
-            .eq('flow_id', params.id);
+            .eq('flow_id', id);
 
         if (updateError) throw updateError;
 

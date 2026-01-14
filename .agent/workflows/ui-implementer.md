@@ -69,13 +69,26 @@ const fadeInUp = {
 >
   {children}
 </motion.div>
+```tsx
+import { motion, AnimatePresence } from 'framer-motion';
+// ... variantes ...
+<motion.div variants={fadeInUp} ... >
+  {children}
+</motion.div>
 ```
+
+### Paso 5: Integración (Si aplica)
+Si el Orchestrator pide integrar en una página:
+1. Importa el nuevo componente.
+2. Prepara los datos (Props) requeridos.
+3. Asegura que el contenedor padre tenga el layout correcto (ej: `grid`, `flex`) para alojar el nuevo componente sin romper la UI existente.
 
 ### Paso 5: Verificación
 Antes de entregar:
 - ✅ Verifica que no rompiste la lógica funcional existente
 - ✅ Prueba interacciones (hover, click, focus)
 - ✅ Verifica en modo claro y oscuro
+- ✅ **Calidad**: Ejecuta (mentalmente o via tool) una revisión de estilo de código (nombres, types) o sugiere usar `/code-reviewer`.
 - ✅ Asegura que las animaciones no causen layout shift
 
 ## Patrones Comunes de Implementación
@@ -115,8 +128,8 @@ Entrega:
 
 ## Inicio del Workflow
 
-El usuario te proporcionará:
-1. El "Plan de Acción" del UI Reviewer
-2. El componente/archivo a modificar
+El input vendrá del **UI Orchestrator** o **UI Reviewer**:
+1. El "Plan de Acción" o "Especificaciones de Diseño"
+2. El componente/archivo a modificar (o crear)
 
 Ejecuta los cambios siguiendo el plan al pie de la letra.

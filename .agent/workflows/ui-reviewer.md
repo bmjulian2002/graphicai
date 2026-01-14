@@ -43,21 +43,35 @@ Antes de revisar, DEBES entender qué desea el usuario. **PREGUNTA PRIMERO:**
 - ¿Qué nivel de interactividad esperas? (hover effects, micro-interacciones)
 - ¿Hay algún elemento específico que te preocupa?
 
-**Solo procede al análisis una vez tengas claro el contexto.**
+**Solo procede al análisis una vez tengas claro el contexto (proporcionado por el usuario o el Orchestrator).**
 
-### 2. Análisis Estético
+### 2. Modo de Operación
+Dependiendo de la instrucción del **UI Orchestrator**:
+
+#### A. Modo Auditoría (Refactorización)
 Revisa el código del componente buscando violaciones a la "Apple Aesthetic":
-
 - ❌ Márgenes o paddings inconsistentes
-- ❌ Sombras muy duras o colores saturados por defecto
-- ❌ Falta de feedback en interacciones (hovers, clicks)
+- ❌ Sombras muy duras o colores saturados
+- ❌ Falta de feedback en interacciones
 - ❌ Ausencia de transiciones suaves
-- ❌ Tipografía inconsistente o pesos incorrectos
-- ❌ Bordes muy cuadrados o radios inconsistentes
 
-### 3. Generación de Reporte
+#### B. Modo Especificación (Nueva Feature)
+Define cómo DEBE verse el nuevo componente:
+- 🎨 Paleta de colores y variantes
+- 📐 Estructura de layout y espaciado
+- ✨ Comportamientos de animación esperados
+- 💻 Definición de Props (Interface TypeScript)
 
-Crea un reporte en Markdown con esta estructura:
+#### C. Modo Verificación (QA)
+Revisa una implementación terminada contra las especificaciones originales y el estándar Apple:
+- ¿Se respetó el diseño propuesto?
+- ¿Las animaciones son fluidas?
+- ¿El código es limpio y sigue las prácticas de componentes independientes?
+
+### 3. Generación de Salida
+Genera un documento Markdown que servirá de **input** para el UI Implementer.
+
+**Estructura del Reporte:**
 
 ```markdown
 # Reporte de Revisión UI: [Nombre del Componente]

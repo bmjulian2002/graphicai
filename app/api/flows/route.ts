@@ -60,8 +60,8 @@ export async function POST(req: Request) {
         }
 
         // Create flow
-        const { data: flow, error: flowError } = await supabase
-            .from('flows')
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data: flow, error: flowError } = await (supabase.from('flows' as any) as any)
             .insert({
                 name,
                 description,
@@ -73,8 +73,8 @@ export async function POST(req: Request) {
         if (flowError) throw flowError;
 
         // Create flow data
-        const { error: flowDataError } = await supabase
-            .from('flow_data')
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { error: flowDataError } = await (supabase.from('flow_data' as any) as any)
             .insert({
                 flow_id: flow.id,
                 nodes_data: [],

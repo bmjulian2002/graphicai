@@ -1,59 +1,54 @@
-# UI/UX Agents - Workflows
+# UI/UX & Debugging Agents - Workflows
 
-Este directorio contiene workflows para mejorar la estética de la interfaz de usuario siguiendo los estándares de diseño de Apple.
+Este directorio contiene workflows organizados en "Swarms" (Enjambres) para Desarrollo y Debugging.
 
-## Agentes Disponibles
+## 🧠 Swarm 1: UI/UX (Diseño y Frontend)
 
-### `/ui-reviewer` - UI/UX Style Reviewer
-**Propósito**: Analizar componentes y proponer mejoras estéticas basadas en Apple Aesthetic.
+### 👑 `/ui-orchestrator`
+**Rol**: Product Manager & Design Lead.
+**Uso**: Para crear nuevas features o refactorizaciones visuales completas.
+**Coordina a**:
+- `/ui-reviewer` (Diseño/Specs/QA)
+- `/ui-implementer` (Frontend Dev)
 
-**Uso**:
-```
-/ui-reviewer
-```
+---
 
-El agente te hará preguntas de contexto antes de revisar:
-- ¿Deseas animaciones?
-- ¿Estilo glass o sólido?
-- ¿Vista desktop o mobile?
+## 🚑 Swarm 2: Debugging & Reparación
 
-Luego generará un reporte detallado con:
-- Diagnóstico de problemas actuales
-- Recomendaciones específicas
-- Plan de acción técnico para el implementador
+### 👑 `/bug-fixer`
+**Rol**: Jefe de Triage y Orquestador de Bugs.
+**Uso**: Para cualquier error o bug reportado.
+**Función**: Diagnostica y delega.
 
-### `/ui-implementer` - UI Style Implementer
-**Propósito**: Ejecutar el plan de mejoras generado por el UI Reviewer.
+### 🛠️ `/backend-debugger`
+**Rol**: Especialista Backend & Supabase DBA.
+**Poderes MCP**:
+- Acceso a Logs de Supabase.
+- Ejecución de SQL.
+- Inspección de RLS.
+**Uso**: Invocado por `bug-fixer` para errores 500, problemas de datos o auth.
 
-**Uso**:
-```
-/ui-implementer
-```
+---
 
-Requiere:
-1. El plan de acción del UI Reviewer
-2. El componente/archivo a modificar
+## 🛡️ Agentes de Soporte (Transversales)
 
-Entrega:
-- Código refactorizado
-- Lista de cambios aplicados
-- Notas técnicas si hubo desviaciones
+### `/code-reviewer`
+**Rol**: QA Técnico.
+**Uso**: Verifica calidad de código, naming conventions y TypeScript.
 
-## Workflow Completo
+### `/git-commit`
+**Rol**: Release Manager.
+**Uso**: Empaqueta cambios y gestiona versionamiento.
 
-1. **Revisión**: Ejecuta `/ui-reviewer` con el componente a mejorar
-2. **Aprobación**: Revisa el plan generado
-3. **Implementación**: Ejecuta `/ui-implementer` con el plan aprobado
-4. **Verificación**: Prueba los cambios en el navegador
+---
 
-## Estándares de Diseño
+## Ejemplo de Flujo Completo (Error Complejo)
 
-Los agentes siguen estos principios:
-- **Tipografía**: Inter/SF Pro, pesos consistentes
-- **Color**: Fondos puros, glassmorphism sutil
-- **Sombras**: Difusas y suaves (`shadow-black/5`)
-- **Bordes**: Redondeados (`rounded-xl`, `rounded-2xl`)
-- **Motion**: Transiciones suaves con curvas naturales
-- **Interacción**: Feedback visual en todos los estados
-
-Ver `apple_aesthetic_agents.md` en artifacts para detalles completos.
+1. Usuario: "No puedo guardar mi diagrama, sale error".
+2. Ejecutas: `/bug-fixer`.
+3. **Bug Fixer**: Analiza y sospecha del backend. Llama a `backend-debugger`.
+4. **Backend Debugger**: Usa MCP, ve logs, detecta error RLS en Supabase. Propone fix SQL.
+5. **Bug Fixer**: Aplica el fix SQL. Pide a usuario probar.
+6. Usuario: "Ya guarda, pero se ve feo el mensaje de éxito".
+7. **Bug Fixer**: Llama a `ui-orchestrator`.
+8. **UI Swarm**: Diseña e implementa un Toast de éxito estilo Apple.

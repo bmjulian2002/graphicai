@@ -4,9 +4,10 @@ import { createServerClient } from '@/lib/supabase/server';
 // GET a specific flow
 export async function GET(
     req: Request,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const { id } = await params;
         const supabase = createServerClient();
 
         const {
@@ -21,10 +22,10 @@ export async function GET(
         const { data: flow, error } = await supabase
             .from('flows')
             .select(`
-        *,
-        flow_data (*)
-      `)
-            .eq('id', params.id)
+                *,
+                flow_data (*)
+            `)
+            .eq('id', id)
             .eq('user_id', user.id)
             .single();
 
@@ -48,9 +49,10 @@ export async function GET(
 // PUT update a flow
 export async function PUT(
     req: Request,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const { id } = await params;
         const supabase = createServerClient();
 
         const {
@@ -64,13 +66,13 @@ export async function PUT(
 
         const { name, description } = await req.json();
 
-        const { data, error } = await supabase
-            .from('flows')
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data, error } = await (supabase.from('flows' as any) as any)
             .update({
                 name,
                 description,
             })
-            .eq('id', params.id)
+            .eq('id', id)
             .eq('user_id', user.id)
             .select();
 
@@ -94,9 +96,10 @@ export async function PUT(
 // DELETE a flow
 export async function DELETE(
     req: Request,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const { id } = await params;
         const supabase = createServerClient();
 
         const {
@@ -111,7 +114,7 @@ export async function DELETE(
         const { data, error } = await supabase
             .from('flows')
             .delete()
-            .eq('id', params.id)
+            .eq('id', id)
             .eq('user_id', user.id)
             .select();
 
