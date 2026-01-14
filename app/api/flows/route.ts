@@ -4,7 +4,7 @@ import { createServerClient } from '@/lib/supabase/server';
 // GET all flows for the current user
 export async function GET() {
     try {
-        const supabase = createServerClient();
+        const supabase = await createServerClient();
 
         const {
             data: { user },
@@ -39,7 +39,7 @@ export async function GET() {
 // POST create a new flow
 export async function POST(req: Request) {
     try {
-        const supabase = createServerClient();
+        const supabase = await createServerClient();
 
         const {
             data: { user },
