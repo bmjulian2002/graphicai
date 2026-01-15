@@ -22,7 +22,7 @@ import { Maximize2, Minimize2 } from 'lucide-react';
 import { useModelData } from './hooks/useModelData';
 import { analyzeArchitecture } from './logic/topology-analysis';
 import { PatternLabel } from './components/PatternLabel';
-import { NodeDetailSidebar } from './components/NodeDetailSidebar';
+import { NodeDetailSidebar } from './components/NodeDetailSidepanel';
 import { LLMNode, MCPNode, ClientNode, ErrorNode } from './nodes/CustomNodes';
 
 // Interfaces for component props if needed to be controlled from outside

@@ -4,7 +4,7 @@ import FlowMigrationPackage from '@/components/flow-migration-package';
 
 export default function FlowPage() {
     return (
-        <div className="h-[calc(100vh-8rem)] w-full">
+        <div className="h-full w-full">
             <FlowMigrationPackage />
         </div>
     );
