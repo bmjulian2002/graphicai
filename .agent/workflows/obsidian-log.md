@@ -14,39 +14,50 @@ Generar logs detallados y enriquecidos sobre el progreso del desarrollo en la b�
   - Commits: `graphicai/commits/YYYY-MM-DD.md`
   - Deploys: `graphicai/deploys/YYYY-MM-DD.md`
 
-## Tipos de Log
+## FORMATO ESTRICTO - NUNCA VARIAR
 
 ### Tipo: `commit` (por defecto para /commit-flow)
-Documenta commits individuales sin deploy.
 
 **Ruta**: `graphicai/commits/YYYY-MM-DD.md`
 
-**Formato:**
+**Plantilla EXACTA (NO agregar ni quitar campos):**
 ```markdown
 ### 🔨 [HH:MM] Commit
-**Hash**: `a1b2c3d`
-**Tipo**: feat(auth)
-**Mensaje**: Migrate login to Supabase
+**Hash**: `abc1234`
+**Tipo**: tipo(alcance)
+**Mensaje**: Descripción del commit
 **Archivos**: 
-- `app/api/auth/login/route.ts`
-- `lib/supabase/client.ts`
-**Tags**: #dev #graphicai #supabase
+- `ruta/archivo1.ext`
+- `ruta/archivo2.ext`
+**Tags**: #dev #graphicai #tag-adicional
 ```
 
+**REGLAS ESTRICTAS:**
+- ✅ Usa EXACTAMENTE estos campos en este orden
+- ❌ NO agregues campos adicionales como "Problema Resuelto", "Mejoras", "Solución"
+- ❌ NO agregues explicaciones o contexto fuera de la plantilla
+- ✅ Mantén el formato de lista para archivos (un archivo por línea con `-`)
+- ✅ Tags siempre empiezan con `#dev #graphicai` + tags específicos del alcance
+
 ### Tipo: `deploy` (por defecto para /release-flow)
-Documenta despliegues a producción.
 
 **Ruta**: `graphicai/deploys/YYYY-MM-DD.md`
 
-**Formato:**
+**Plantilla EXACTA (NO agregar ni quitar campos):**
 ```markdown
 ### 🚀 [HH:MM] Deploy a Producción
-**Commit**: `a1b2c3d - feat(auth): migrate to supabase`
+**Commit**: `abc1234 - tipo(alcance): mensaje`
 **Ambiente**: Production (Vercel)
 **URL**: https://graphicai.vercel.app
 **Estado**: ✅ Exitoso
 **Tags**: #deploy #production #graphicai
 ```
+
+**REGLAS ESTRICTAS:**
+- ✅ Usa EXACTAMENTE estos campos en este orden
+- ❌ NO agregues campos adicionales
+- ✅ Estado solo puede ser: `✅ Exitoso` o `❌ Fallido`
+- ✅ Tags siempre: `#deploy #production #graphicai`
 
 ## Proceso de Trabajo (Autónomo)
 
@@ -63,15 +74,12 @@ Determina automáticamente:
 - **Tags**: Genera automáticamente basado en el tipo y alcance
 
 ### 3. Escritura en Obsidian
-Usa `mcp_obsidian_obsidian_append_content` para agregar el log:
-```javascript
-mcp_obsidian_obsidian_append_content({
-  filepath: "graphicai/commits/YYYY-MM-DD.md",
-  content: "### 🔨 [HH:MM] Commit\n..."
-})
-```
+Usa `mcp_obsidian_obsidian_append_content` para agregar el log siguiendo EXACTAMENTE la plantilla.
 
-**IMPORTANTE**: El nombre correcto de la herramienta es `mcp_obsidian_obsidian_append_content` (con doble prefijo obsidian).
+**IMPORTANTE**: 
+- El nombre correcto de la herramienta es `mcp_obsidian_obsidian_append_content`
+- NUNCA agregues campos o explicaciones fuera de la plantilla
+- Si tienes contexto adicional que quieres documentar, ignóralo - solo usa la plantilla
 
 ## Herramientas MCP Disponibles
 - `mcp_obsidian_obsidian_append_content` - Agregar contenido a archivo
@@ -79,8 +87,8 @@ mcp_obsidian_obsidian_append_content({
 - `mcp_obsidian_obsidian_list_files_in_vault` - Listar archivos
 - `mcp_obsidian_obsidian_simple_search` - Buscar en vault
 
-## Reglas
+## Reglas Finales
 - Usa SIEMPRE las herramientas MCP de Obsidian
 - Si falla el MCP, usa `write_to_file` como fallback
-- Los logs deben ser concisos pero informativos
-- Incluye contexto técnico relevante (problema resuelto, solución aplicada)
+- **FORMATO RÍGIDO**: Sigue la plantilla exacta, sin variaciones
+- NO agregues contexto, explicaciones o campos adicionales
