@@ -22,8 +22,9 @@ Generar logs detallados y enriquecidos sobre el progreso del desarrollo en la b�
 
 **Plantilla EXACTA (NO agregar ni quitar campos):**
 ```markdown
-### 🔨 [YYYY-MM-DD HH:MM] Commit
+### 🔨 [HH:MM] Commit
 **Hash**: `abc1234`
+**Rama**: nombre-rama
 **Tipo**: tipo(alcance)
 **Mensaje**: Descripción del commit
 **Archivos**: 
@@ -34,11 +35,11 @@ Generar logs detallados y enriquecidos sobre el progreso del desarrollo en la b�
 
 **REGLAS ESTRICTAS:**
 - ✅ Usa EXACTAMENTE estos campos en este orden
-- ✅ Título debe incluir fecha completa: `[YYYY-MM-DD HH:MM]`
 - ❌ NO agregues campos adicionales como "Problema Resuelto", "Mejoras", "Solución"
 - ❌ NO agregues explicaciones o contexto fuera de la plantilla
 - ✅ Mantén el formato de lista para archivos (un archivo por línea con `-`)
 - ✅ Tags siempre empiezan con `#dev #graphicai` + tags específicos del alcance
+- ✅ Rama se obtiene con: `git branch --show-current`
 
 ### Tipo: `deploy` (por defecto para /release-flow)
 
@@ -46,7 +47,7 @@ Generar logs detallados y enriquecidos sobre el progreso del desarrollo en la b�
 
 **Plantilla EXACTA (NO agregar ni quitar campos):**
 ```markdown
-### 🚀 [YYYY-MM-DD HH:MM] Deploy a Producción
+### 🚀 [HH:MM] Deploy a Producción
 **Commit**: `abc1234 - tipo(alcance): mensaje`
 **Ambiente**: Production (Vercel)
 **URL**: https://graphicai.vercel.app
@@ -56,7 +57,6 @@ Generar logs detallados y enriquecidos sobre el progreso del desarrollo en la b�
 
 **REGLAS ESTRICTAS:**
 - ✅ Usa EXACTAMENTE estos campos en este orden
-- ✅ Título debe incluir fecha completa: `[YYYY-MM-DD HH:MM]`
 - ❌ NO agregues campos adicionales
 - ✅ Estado solo puede ser: `✅ Exitoso` o `❌ Fallido`
 - ✅ Tags siempre: `#deploy #production #graphicai`
@@ -65,6 +65,7 @@ Generar logs detallados y enriquecidos sobre el progreso del desarrollo en la b�
 
 ### 1. Recolección Automática de Datos
 - Último commit: `git log -1 --pretty=format:"%H|%s|%an|%ad" --date=iso`
+- Rama actual: `git branch --show-current`
 - Archivos modificados: `git diff --name-only HEAD~1 HEAD`
 - Hora actual para timestamp
 
