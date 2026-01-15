@@ -48,10 +48,4 @@
 }
 
 /* React Flow Styles */
-.react-flow__node {
-  @apply transition-all duration-200;
-}
-
-.react-flow__edge-path {
-  @apply transition-all duration-200;
-}
+/* Transitions removed - they interfere with drag performance */

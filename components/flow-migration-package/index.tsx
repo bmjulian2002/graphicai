@@ -1,0 +1,483 @@
+'use client';
+
+import React, { useCallback, useMemo, useState, useEffect } from 'react';
+import {
+    Controls,
+    ReactFlow,
+    Node,
+    Edge,
+    Background,
+    useNodesState,
+    useEdgesState,
+    Connection,
+    addEdge,
+    BackgroundVariant,
+    Handle,
+    Position,
+    NodeProps
+} from '@xyflow/react';
+import '@xyflow/react/dist/style.css';
+import { Maximize2, Minimize2 } from 'lucide-react';
+
+import { useModelData } from './hooks/useModelData';
+import { analyzeArchitecture } from './logic/topology-analysis';
+import { PatternLabel } from './components/PatternLabel';
+import { NodeDetailSidebar } from './components/NodeDetailSidebar';
+import { LLMNode, MCPNode, ClientNode, ErrorNode } from './nodes/CustomNodes';
+
+// Interfaces for component props if needed to be controlled from outside
+interface FlowPackageProps {
+    initialNodes?: Node[];
+    initialEdges?: Edge[];
+}
+
+const nodeTypes = {
+    llmNode: LLMNode,
+    mcpNode: MCPNode,
+    clientNode: ClientNode,
+    errorNode: ErrorNode,
+};
+
+// Default Data (Copied from original for standalone capability)
+const defaultNodes: Node[] = [
+    {
+        id: 'user', type: 'clientNode', position: { x: 400, y: 0 },
+        data: { label: 'Developer', shortName: 'User', entityType: 'Client Interface' }
+    },
+    {
+        id: 'agent-analyze', type: 'llmNode', position: { x: 100, y: 200 },
+        data: { label: 'Analyze Changes', shortName: 'Analyze', entityType: 'LLM Agent', provider: 'Gemini', modelId: 'gemini-1.5-pro' }
+    }
+];
+
+export default function FlowMigrationPackage({ initialNodes: propNodes, initialEdges: propEdges }: FlowPackageProps) {
+    const [nodes, setNodes, onNodesChange] = useNodesState(propNodes || defaultNodes);
+    const [edges, setEdges, onEdgesChange] = useEdgesState(propEdges || []);
+    const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+    const [isFullscreen, setIsFullscreen] = useState(false);
+
+    const { models, breakpoints, loading } = useModelData();
+    const detectedPatterns = useMemo(() => analyzeArchitecture(nodes, edges), [nodes, edges]);
+
+    // Helper to determine edge style from model price
+    const getEdgeStyle = useCallback((modelId: string | undefined): any => {
+        if (!modelId || !breakpoints || models.length === 0) return { strokeWidth: 2, className: '' };
+
+        const model = models.find((m: any) => m.id === modelId);
+        if (!model) return { strokeWidth: 2, className: '' };
+
+        const price = parseFloat(model.pricing.prompt);
+
+        if (price < breakpoints.low) {
+            return { strokeWidth: 1, className: 'edge-light' };
+        }
+        if (price > breakpoints.high) {
+            return { strokeWidth: 5, className: 'edge-heavy' };
+        }
+
+        return { strokeWidth: 2.5, className: '' };
+    }, [models, breakpoints]);
+
+    // Helper to resolve node type from metadata
+    const resolveNodeType = useCallback((node: Node | undefined) => {
+        if (!node) return 'unknown';
+        const entityType = node.data.entityType as string;
+        if (entityType === 'LLM Agent') return 'llmNode';
+        if (entityType === 'MCP Server' || entityType === 'Database' || entityType === 'Storage') return 'mcpNode';
+        if (entityType === 'Client Interface') return 'clientNode';
+        if (entityType === 'System Error') return 'errorNode';
+        return node.type;
+    }, []);
+
+    // Validation Helper
+    const validateConnection = useCallback((sourceNode: Node, targetNode: Node) => {
+        const sourceType = resolveNodeType(sourceNode);
+        const targetType = resolveNodeType(targetNode);
+
+        let style: React.CSSProperties = { stroke: '#3b82f6', strokeWidth: 2 };
+        let animated = true;
+        let label = undefined;
+        let labelStyle = undefined;
+        let labelShowBg = false;
+        let className = '';
+        let markerEnd: any = undefined;
+
+        // Apply Data Throughput Visuals (Model Price)
+        if (sourceType === 'llmNode') {
+            const dynamicStyle = getEdgeStyle(sourceNode.data.modelId as string);
+            style.strokeWidth = dynamicStyle.strokeWidth;
+            className = dynamicStyle.className;
+        }
+
+        // Validation Rules
+        const isClientToMCP = sourceType === 'clientNode' && targetType === 'mcpNode';
+        const isMCPToClient = sourceType === 'mcpNode' && targetType === 'clientNode';
+        const isMCPToMCP = sourceType === 'mcpNode' && targetType === 'mcpNode';
+        const isClientToClient = sourceType === 'clientNode' && targetType === 'clientNode';
+
+        const isErrorNode = sourceType === 'errorNode' || targetType === 'errorNode';
+        if (isErrorNode) {
+            style = { stroke: '#dc2626', strokeWidth: 2, strokeDasharray: '0' };
+            animated = false;
+            label = 'Protocol Error';
+            labelStyle = { fill: '#dc2626', fontWeight: 700, fontSize: 10 };
+            labelShowBg = true;
+            markerEnd = 'url(#error-x)';
+            className = '';
+        }
+        else if (isClientToMCP || isMCPToClient || isMCPToMCP || isClientToClient) {
+            style = { stroke: '#dc2626', strokeWidth: 2, strokeDasharray: '0' };
+            animated = false;
+            label = 'Protocol Error: Agente Requerido';
+            labelStyle = { fill: '#dc2626', fontWeight: 700, fontSize: 10 };
+            labelShowBg = true;
+            markerEnd = 'url(#error-x)';
+            className = '';
+        } else if (sourceType === 'mcpNode' || targetType === 'mcpNode') {
+            if (sourceType === 'llmNode') {
+                const dynamicStyle = getEdgeStyle(sourceNode.data.modelId as string);
+                style = {
+                    stroke: '#22c55e',
+                    strokeWidth: dynamicStyle.strokeWidth
+                };
+                className = dynamicStyle.className;
+            } else {
+                style = { stroke: '#22c55e', strokeWidth: 2 };
+                className = '';
+            }
+        }
+
+        return { style, animated, label, labelStyle, labelShowBg, className, markerEnd };
+    }, [resolveNodeType, getEdgeStyle]);
+
+    // Smart Connection Validation (for new connections)
+    const onConnect = useCallback(
+        (params: Connection) => {
+            const sourceNode = nodes.find((n) => n.id === params.source);
+            const targetNode = nodes.find((n) => n.id === params.target);
+
+            if (!sourceNode || !targetNode) return;
+
+            const validationProps = validateConnection(sourceNode, targetNode);
+            setEdges((eds) => addEdge({ ...params, ...validationProps }, eds));
+        },
+        [setEdges, nodes, validateConnection]
+    );
+
+    // Re-validate all edges when nodes change
+    const prevNodesRef = React.useRef<string>('');
+    useEffect(() => {
+        const currentNodesSignature = JSON.stringify(nodes.map(n => ({
+            id: n.id,
+            type: n.type,
+            entityType: n.data.entityType,
+            modelId: n.data.modelId
+        })));
+
+        if (prevNodesRef.current === currentNodesSignature) {
+            return;
+        }
+
+        prevNodesRef.current = currentNodesSignature;
+
+        setEdges((currentEdges) =>
+            currentEdges.map(edge => {
+                const sourceNode = nodes.find(n => n.id === edge.source);
+                const targetNode = nodes.find(n => n.id === edge.target);
+
+                if (!sourceNode || !targetNode) return edge;
+
+                const validationProps = validateConnection(sourceNode, targetNode);
+
+                return {
+                    ...edge,
+                    ...validationProps
+                };
+            })
+        );
+    }, [nodes, validateConnection, setEdges]);
+
+    const onNodeClick = useCallback((_: React.MouseEvent, node: Node) => {
+        setSelectedNodeId(node.id);
+    }, []);
+
+    const selectedNode = useMemo(() => nodes.find(n => n.id === selectedNodeId) || null, [nodes, selectedNodeId]);
+
+    // State for Add Entity dropdown
+    const [showAddMenu, setShowAddMenu] = useState(false);
+    const [isClosing, setIsClosing] = useState(false);
+
+    const closeMenu = useCallback(() => {
+        setIsClosing(true);
+        setTimeout(() => {
+            setShowAddMenu(false);
+            setIsClosing(false);
+        }, 150);
+    }, []);
+
+    // Helper functions for creating new nodes
+    const getDefaultDataForEntity = (entityType: string): any => {
+        const baseData = {
+            label: `New ${entityType}`,
+            shortName: entityType.split(' ')[0],
+            entityType,
+        };
+
+        switch (entityType) {
+            case 'LLM Agent':
+                return {
+                    ...baseData,
+                    provider: 'OpenAI',
+                    modelId: 'gpt-4',
+                    cost: 0.03,
+                    systemPrompt: 'You are a helpful assistant.',
+                    taskComplexity: 'simple',
+                    baseTokens: 500,
+                    mcpFactor: 1,
+                    userHasFreeTier: false,
+                };
+            case 'MCP Server':
+                return {
+                    ...baseData,
+                    tools: ['read_file', 'write_file'],
+                    resources: 'filesystem',
+                };
+            case 'Client Interface':
+                return {
+                    ...baseData,
+                    transport: 'stdio',
+                    sessionId: `session-${Date.now()}`,
+                    env: 'USER=developer\nSESSION_ID=dev-01',
+                };
+            case 'Database':
+                return {
+                    ...baseData,
+                    tools: ['query', 'insert', 'update'],
+                    resources: 'postgresql://localhost:5432',
+                };
+            case 'Storage':
+                return {
+                    ...baseData,
+                    tools: ['upload', 'download', 'delete'],
+                    resources: 's3://bucket-name',
+                };
+            default:
+                return baseData;
+        }
+    };
+
+    const getNodeTypeFromEntity = (entityType: string): string => {
+        switch (entityType) {
+            case 'LLM Agent':
+                return 'llmNode';
+            case 'MCP Server':
+            case 'Database':
+            case 'Storage':
+                return 'mcpNode';
+            case 'Client Interface':
+                return 'clientNode';
+            default:
+                return 'llmNode';
+        }
+    };
+
+    const addNode = useCallback((entityType: string) => {
+        const newNode: Node = {
+            id: `node-${Date.now()}`,
+            type: getNodeTypeFromEntity(entityType),
+            position: { x: 400, y: 300 },
+            data: getDefaultDataForEntity(entityType)
+        };
+        setNodes((nds) => [...nds, newNode]);
+        setShowAddMenu(false);
+    }, [setNodes]);
+
+    return (
+        <>
+
+            <style jsx global>{`
+                /* Connection Feedback Styles */
+                
+                /* Source is Client -> Agents Glow */
+                body.source-is-client .react-flow__node-llmNode {
+                    animation: pulse-green 1.5s infinite;
+                    box-shadow: 0 0 15px rgba(34, 197, 94, 0.4);
+                }
+                body.source-is-client .react-flow__node-mcpNode {
+                    opacity: 0.5;
+                    filter: grayscale(1);
+                }
+
+                /* Source is Agent -> Agents & MCPs Glow */
+                body.source-is-agent .react-flow__node-llmNode,
+                body.source-is-agent .react-flow__node-mcpNode,
+                body.source-is-agent .react-flow__node-clientNode { /* Agents can technically reply to client */
+                    animation: pulse-blue 1.5s infinite;
+                    box-shadow: 0 0 15px rgba(59, 130, 246, 0.4);
+                }
+
+                /* Source is MCP -> Not Allowed (mostly) */
+                body.source-is-mcp .react-flow__pane {
+                    cursor: not-allowed !important;
+                }
+                body.source-is-mcp .react-flow__handle {
+                    pointer-events: none;
+                }
+
+                @keyframes pulse-blue {
+                    0% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.4); }
+                    70% { box-shadow: 0 0 0 10px rgba(59, 130, 246, 0); }
+                    100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
+                }
+
+                /* Edge Animation Speeds & Styles */
+                .edge-heavy .react-flow__edge-path {
+                    animation-duration: 3s !important; /* Slow calculation */
+                    filter: drop-shadow(0 0 3px rgba(59, 130, 246, 0.6));
+                    stroke-linecap: round;
+                }
+                
+                .edge-light .react-flow__edge-path {
+                    animation-duration: 0.5s !important; /* Low latency */
+                    stroke-dasharray: 4;
+                    filter: drop-shadow(0px 0px 2px rgba(34, 197, 94, 0.3));
+                }
+
+                /* Disable ALL animations on red error edges */
+                .react-flow__edge-path[stroke="#dc2626"],
+                .react-flow__edge-path[stroke="rgb(220, 38, 38)"] {
+                    animation: none !important;
+                    stroke-dasharray: 0 !important;
+                }
+
+                @keyframes pulse-green {
+                    0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.4); }
+                    70% { box-shadow: 0 0 0 10px rgba(34, 197, 94, 0); }
+                    100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+                }
+
+                .react-flow__edge-path {
+                    stroke-dasharray: 10;
+                    animation: flow-animation var(--speed, 1.5s) linear infinite;
+                }
+
+                @keyframes flow-animation {
+                    from { stroke-dashoffset: 20; }
+                    to { stroke-dashoffset: 0; }
+                }
+
+                @keyframes fadeInUp {
+                    from {
+                        opacity: 0;
+                        transform: translateY(10px);
+                    }
+                    to {
+                        opacity: 1;
+                        transform: translateY(0);
+                    }
+                }
+            `}</style>
+
+            {/* Custom Markers Definition */}
+            <svg style={{ position: 'absolute', top: 0, left: 0, width: 0, height: 0 }}>
+                <defs>
+                    <marker
+                        id="error-x"
+                        viewBox="0 0 10 10"
+                        refX="5"
+                        refY="5"
+                        markerWidth="6"
+                        markerHeight="6"
+                        orient="auto-start-reverse"
+                    >
+                        <path d="M2,2 L8,8 M8,2 L2,8" stroke="#dc2626" strokeWidth="2" fill="none" />
+                        <circle cx="5" cy="5" r="4.5" stroke="#dc2626" strokeWidth="1" fill="none" />
+                    </marker>
+                </defs>
+            </svg>
+
+
+            <div className={`relative bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden transition-all duration-300
+            ${isFullscreen ? 'fixed inset-0 z-[100] rounded-none' : 'w-full h-[600px]'}
+        `}>
+                <button
+                    onClick={() => setIsFullscreen(!isFullscreen)}
+                    className="absolute top-4 left-4 z-50 p-2 bg-white rounded-full shadow-md z-50"
+                >
+                    {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+                </button>
+
+                {/* Add Entity Floating Button */}
+                <div className="absolute top-4 right-4 z-50">
+                    <div className="relative">
+                        <button
+                            onClick={() => showAddMenu ? closeMenu() : setShowAddMenu(true)}
+                            className="flex items-center gap-2 px-5 py-2.5 bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-gray-200/50 dark:border-gray-700/50 hover:bg-white/90 dark:hover:bg-gray-900/90 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 font-medium text-sm text-gray-900 dark:text-gray-100 hover:scale-105 active:scale-95"
+                        >
+                            <span className={`text-base transition-transform duration-300 ${showAddMenu ? 'rotate-45' : ''}`}>+</span>
+                            <span>Add</span>
+                        </button>
+
+                        {showAddMenu && (
+                            <div className={`absolute top-full right-0 mt-3 w-56 bg-white/95 dark:bg-gray-900/95 backdrop-blur-2xl border border-gray-200/50 dark:border-gray-700/50 rounded-2xl shadow-2xl overflow-hidden z-10 ${isClosing
+                                ? 'animate-out fade-out slide-out-to-top-2 zoom-out-95 duration-150'
+                                : 'animate-in fade-in slide-in-from-top-2 zoom-in-95 duration-200'
+                                }`}>
+                                {['LLM Agent', 'MCP Server', 'Client Interface', 'Database', 'Storage'].map((type, idx) => (
+                                    <button
+                                        key={type}
+                                        onClick={() => {
+                                            addNode(type);
+                                            closeMenu();
+                                        }}
+                                        className={`w-full text-left px-5 py-3.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100/80 dark:hover:bg-gray-800/80 transition-all duration-200 ${idx !== 0 ? 'border-t border-gray-100/50 dark:border-gray-800/50' : ''
+                                            }`}
+                                        style={{
+                                            animation: isClosing ? 'none' : `fadeInUp 0.3s ease-out ${idx * 0.05}s both`
+                                        }}
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <span className="text-base">
+                                                {type === 'LLM Agent' && '🤖'}
+                                                {type === 'MCP Server' && '🔌'}
+                                                {type === 'Client Interface' && '💻'}
+                                                {type === 'Database' && '🗄️'}
+                                                {type === 'Storage' && '📦'}
+                                            </span>
+                                            <span className="font-medium">{type}</span>
+                                        </div>
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                <ReactFlow
+                    nodes={nodes}
+                    edges={edges}
+                    onNodesChange={onNodesChange}
+                    onEdgesChange={onEdgesChange}
+                    onConnect={onConnect}
+                    onNodeClick={onNodeClick}
+                    nodeTypes={nodeTypes}
+                    fitView
+                >
+                    <Background variant={BackgroundVariant.Dots} />
+                    <Controls />
+                    {detectedPatterns.map((p, idx) => (
+                        <PatternLabel key={idx} pattern={p} />
+                    ))}
+                </ReactFlow>
+
+                <NodeDetailSidebar
+                    node={selectedNode}
+                    setNodes={setNodes}
+                    setEdges={setEdges}
+                    onClose={() => setSelectedNodeId(null)}
+                    models={models}
+                />
+            </div>
+        </>
+    );
+}
