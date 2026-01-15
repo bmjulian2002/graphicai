@@ -22,7 +22,7 @@ Generar logs detallados y enriquecidos sobre el progreso del desarrollo en la b�
 
 **Plantilla EXACTA (NO agregar ni quitar campos):**
 ```markdown
-### 🔨 [HH:MM] Commit
+### 🔨 [YYYY-MM-DD HH:MM] Commit
 **Hash**: `abc1234`
 **Tipo**: tipo(alcance)
 **Mensaje**: Descripción del commit
@@ -34,6 +34,7 @@ Generar logs detallados y enriquecidos sobre el progreso del desarrollo en la b�
 
 **REGLAS ESTRICTAS:**
 - ✅ Usa EXACTAMENTE estos campos en este orden
+- ✅ Título debe incluir fecha completa: `[YYYY-MM-DD HH:MM]`
 - ❌ NO agregues campos adicionales como "Problema Resuelto", "Mejoras", "Solución"
 - ❌ NO agregues explicaciones o contexto fuera de la plantilla
 - ✅ Mantén el formato de lista para archivos (un archivo por línea con `-`)
@@ -45,7 +46,7 @@ Generar logs detallados y enriquecidos sobre el progreso del desarrollo en la b�
 
 **Plantilla EXACTA (NO agregar ni quitar campos):**
 ```markdown
-### 🚀 [HH:MM] Deploy a Producción
+### 🚀 [YYYY-MM-DD HH:MM] Deploy a Producción
 **Commit**: `abc1234 - tipo(alcance): mensaje`
 **Ambiente**: Production (Vercel)
 **URL**: https://graphicai.vercel.app
@@ -55,6 +56,7 @@ Generar logs detallados y enriquecidos sobre el progreso del desarrollo en la b�
 
 **REGLAS ESTRICTAS:**
 - ✅ Usa EXACTAMENTE estos campos en este orden
+- ✅ Título debe incluir fecha completa: `[YYYY-MM-DD HH:MM]`
 - ❌ NO agregues campos adicionales
 - ✅ Estado solo puede ser: `✅ Exitoso` o `❌ Fallido`
 - ✅ Tags siempre: `#deploy #production #graphicai`
