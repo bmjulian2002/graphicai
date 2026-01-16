@@ -108,28 +108,7 @@ export default function DashboardLayout({
                             </div>
                         </div>
 
-                        {/* Right side - Apple style */}
-                        <div className="flex items-center gap-2">
-                            {/* Dark mode toggle */}
-                            <button
-                                onClick={toggleDarkMode}
-                                className="p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50 rounded-lg transition-all"
-                            >
-                                {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-                            </button>
 
-                            {/* User avatar - opens sidebar */}
-                            <button
-                                onClick={() => setShowSidebar(!showSidebar)}
-                                className="flex items-center gap-2 px-2 py-1.5 hover:bg-gray-100 dark:hover:bg-gray-700/50 rounded-lg transition-all"
-                            >
-                                <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center ring-2 ring-white dark:ring-gray-800">
-                                    <span className="text-white text-sm font-semibold">
-                                        {user?.email?.[0].toUpperCase() || 'U'}
-                                    </span>
-                                </div>
-                            </button>
-                        </div>
                     </div>
                 </div>
             </nav>
