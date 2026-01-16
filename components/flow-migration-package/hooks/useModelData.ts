@@ -12,6 +12,11 @@ export const useModelData = () => {
                 const response = await fetch('https://openrouter.ai/api/v1/models');
                 const data = await response.json();
 
+                if (!data || !Array.isArray(data.data)) {
+                    console.warn('OpenRouter API response missing data array:', data);
+                    return;
+                }
+
                 const modelList: ModelData[] = data.data.map((m: any) => ({
                     id: m.id,
                     name: m.name,

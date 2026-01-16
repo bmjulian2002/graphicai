@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useMemo, useState, useEffect } from 'react';
+import React, { useCallback, useMemo, useState, useEffect, useRef } from 'react';
 import {
     Controls,
     ReactFlow,
@@ -18,17 +18,21 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { Maximize2, Minimize2 } from 'lucide-react';
+import JSZip from 'jszip';
+import { saveAs } from 'file-saver';
 
 import { useModelData } from './hooks/useModelData';
 import { analyzeArchitecture } from './logic/topology-analysis';
 import { PatternLabel } from './components/PatternLabel';
 import { NodeDetailSidebar } from './components/NodeDetailSidepanel';
+import { AnimatedBackground } from './components/AnimatedBackground';
 import { LLMNode, MCPNode, ClientNode, ErrorNode } from './nodes/CustomNodes';
 
 // Interfaces for component props if needed to be controlled from outside
 interface FlowPackageProps {
     initialNodes?: Node[];
     initialEdges?: Edge[];
+    onSave?: (nodes: Node[], edges: Edge[]) => void;
 }
 
 const nodeTypes = {
@@ -50,7 +54,7 @@ const defaultNodes: Node[] = [
     }
 ];
 
-export default function FlowMigrationPackage({ initialNodes: propNodes, initialEdges: propEdges }: FlowPackageProps) {
+export default function FlowMigrationPackage({ initialNodes: propNodes, initialEdges: propEdges, onSave }: FlowPackageProps) {
     const [nodes, setNodes, onNodesChange] = useNodesState(propNodes || defaultNodes);
     const [edges, setEdges, onEdgesChange] = useEdgesState(propEdges || []);
     const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
@@ -58,6 +62,28 @@ export default function FlowMigrationPackage({ initialNodes: propNodes, initialE
 
     const { models, breakpoints, loading } = useModelData();
     const detectedPatterns = useMemo(() => analyzeArchitecture(nodes, edges), [nodes, edges]);
+    const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+    // Auto-Save Effect
+    useEffect(() => {
+        if (!onSave) return;
+
+        // Clear existing timeout
+        if (saveTimeoutRef.current) {
+            clearTimeout(saveTimeoutRef.current);
+        }
+
+        // Set new timeout (debounce 1s)
+        saveTimeoutRef.current = setTimeout(() => {
+            onSave(nodes, edges);
+        }, 1000);
+
+        return () => {
+            if (saveTimeoutRef.current) {
+                clearTimeout(saveTimeoutRef.current);
+            }
+        };
+    }, [nodes, edges, onSave]);
 
     // Helper to determine edge style from model price
     const getEdgeStyle = useCallback((modelId: string | undefined): any => {
@@ -203,17 +229,150 @@ export default function FlowMigrationPackage({ initialNodes: propNodes, initialE
 
     const selectedNode = useMemo(() => nodes.find(n => n.id === selectedNodeId) || null, [nodes, selectedNodeId]);
 
-    // State for Add Entity dropdown
-    const [showAddMenu, setShowAddMenu] = useState(false);
-    const [isClosing, setIsClosing] = useState(false);
+    // State for Add Entity dropdown - REMOVED (Moved to Sidebar)
 
-    const closeMenu = useCallback(() => {
-        setIsClosing(true);
-        setTimeout(() => {
-            setShowAddMenu(false);
-            setIsClosing(false);
-        }, 150);
-    }, []);
+
+    // Export Flow Handler
+    // Refs for state access inside event listeners without re-binding
+    const nodesRef = useRef(nodes);
+    const edgesRef = useRef(edges);
+
+    // Keep refs in sync
+    useEffect(() => {
+        nodesRef.current = nodes;
+        edgesRef.current = edges;
+    }, [nodes, edges]);
+
+    // Export Flow Handler
+    useEffect(() => {
+        const handleExport = () => {
+            const flowData = { nodes: nodesRef.current, edges: edgesRef.current };
+            const jsonString = JSON.stringify(flowData, null, 2);
+            const blob = new Blob([jsonString], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `flow-export-${Date.now()}.json`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        };
+
+        const handleExportZip = async () => {
+            const zip = new JSZip();
+            const workflowFolder = zip.folder("workflow");
+
+            if (!workflowFolder) {
+                console.error("Failed to create workflow folder in zip");
+                return;
+            }
+
+            const agentNodes = nodesRef.current.filter(n =>
+                n.data.entityType === 'LLM Agent'
+            );
+
+            if (agentNodes.length === 0) {
+                alert("No hay agentes (LLM Agent) para exportar.");
+                return;
+            }
+
+            // Generate Markdown for each agent
+            agentNodes.forEach(node => {
+                const label = (node.data.label as string) || node.id;
+                const safeFilename = label.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+                const systemPrompt = node.data.systemPrompt || '';
+                const modelId = node.data.modelId || 'unknown';
+                const provider = node.data.provider || 'unknown';
+
+                // Analyze Connections
+                const incomingEdges = edgesRef.current.filter(e => e.target === node.id);
+                const outgoingEdges = edgesRef.current.filter(e => e.source === node.id);
+
+                const connectedClients = incomingEdges
+                    .map(e => nodesRef.current.find(n => n.id === e.source))
+                    .filter(n => n?.data.entityType === 'Client Interface')
+                    .map(n => n?.data.label || 'Client');
+
+                const incomingAgents = incomingEdges
+                    .map(e => nodesRef.current.find(n => n.id === e.source))
+                    .filter(n => n?.data.entityType === 'LLM Agent')
+                    .map(n => n?.data.label || 'Unknown Agent');
+
+                const connectedMCPs = outgoingEdges
+                    .map(e => nodesRef.current.find(n => n.id === e.target))
+                    .filter(n => n?.data.entityType === 'MCP Server')
+                    .map(n => n?.data.label || 'Unknown MCP');
+
+                // Build Context String
+                let contextString = `This agent is designed to run on the **${modelId}** model.\n\n`;
+
+                contextString += `### Context & Connections\n`;
+                if (connectedClients.length > 0) {
+                    contextString += `- **Receives input from:** Client Interface (${connectedClients.join(', ')}).\n`;
+                }
+                if (incomingAgents.length > 0) {
+                    contextString += `- **Receives input from Agents:** ${incomingAgents.join(', ')}.\n`;
+                }
+                if (connectedMCPs.length > 0) {
+                    contextString += `- **Connected MCP Servers:** ${connectedMCPs.join(', ')}.\n`;
+                    contextString += `\n**IMPORTANT INSTRUCTION:** You have access to the following MCP Servers: ${connectedMCPs.join(', ')}. You should attempt to use their tools when necessary to fulfill the request. IF an MCP tool call fails or the server is unreachable, you MUST STOP the process and ask the user how to proceed. Do not hallucinate a response if the tool fails.\n`;
+                } else {
+                    contextString += `- **No MCP Servers connected.**\n`;
+                }
+
+                const markdownContent = `---
+title: ${label}
+type: agent
+model: ${modelId}
+provider: ${provider}
+---
+
+# Context & Instructions
+
+${contextString}
+
+# System Prompt
+
+${systemPrompt}
+`;
+                workflowFolder.file(`${safeFilename}.md`, markdownContent);
+            });
+
+            // Generate and download zip
+            try {
+                const content = await zip.generateAsync({ type: "blob" });
+                saveAs(content, "project-workflow.zip");
+                // Dispatch event to show success popup
+                window.dispatchEvent(new CustomEvent('export-zip-success'));
+            } catch (error) {
+                console.error("Failed to generate zip:", error);
+                alert("Error al generar el archivo ZIP. Revisa la consola.");
+            }
+        };
+
+        const handleImport = (event: Event) => {
+            const customEvent = event as CustomEvent;
+            const { nodes: newNodes, edges: newEdges } = customEvent.detail;
+
+            if (newNodes && newEdges) {
+                setNodes(newNodes);
+                setEdges(newEdges);
+            }
+        };
+
+        window.addEventListener('export-flow', handleExport);
+        window.addEventListener('export-workbench-zip', handleExportZip);
+        window.addEventListener('import-flow', handleImport);
+
+        return () => {
+            window.removeEventListener('export-flow', handleExport);
+            window.removeEventListener('export-workbench-zip', handleExportZip);
+            window.removeEventListener('import-flow', handleImport);
+        };
+    }, [setNodes, setEdges]); // Stable dependencies only
+
+
 
     // Helper functions for creating new nodes
     const getDefaultDataForEntity = (entityType: string): any => {
@@ -289,8 +448,26 @@ export default function FlowMigrationPackage({ initialNodes: propNodes, initialE
             data: getDefaultDataForEntity(entityType)
         };
         setNodes((nds) => [...nds, newNode]);
-        setShowAddMenu(false);
     }, [setNodes]);
+
+
+
+
+    // Custom Event Listener for adding nodes from Sidebar
+    useEffect(() => {
+        const handleCreateNode = (event: Event) => {
+            const customEvent = event as CustomEvent;
+            if (customEvent.detail && customEvent.detail.entityType) {
+                addNode(customEvent.detail.entityType);
+            }
+        };
+
+        window.addEventListener('create-node', handleCreateNode);
+
+        return () => {
+            window.removeEventListener('create-node', handleCreateNode);
+        };
+    }, [addNode]);
 
     return (
         <>
@@ -376,6 +553,22 @@ export default function FlowMigrationPackage({ initialNodes: propNodes, initialE
                         transform: translateY(0);
                     }
                 }
+
+                @keyframes blob {
+                    0% { transform: translate(0px, 0px) scale(1); }
+                    33% { transform: translate(30px, -50px) scale(1.1); }
+                    66% { transform: translate(-20px, 20px) scale(0.9); }
+                    100% { transform: translate(0px, 0px) scale(1); }
+                }
+                .animate-blob {
+                    animation: blob 10s infinite;
+                }
+                .animation-delay-2000 {
+                    animation-delay: 2s;
+                }
+                .animation-delay-4000 {
+                    animation-delay: 4s;
+                }
             `}</style>
 
             {/* Custom Markers Definition */}
@@ -397,78 +590,42 @@ export default function FlowMigrationPackage({ initialNodes: propNodes, initialE
             </svg>
 
 
-            <div className={`relative bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden transition-all duration-300
-            ${isFullscreen ? 'fixed inset-0 z-[100] rounded-none' : 'w-full h-[600px]'}
+            <div className={`flex flex-row bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden transition-all duration-300
+            ${isFullscreen ? 'fixed inset-0 z-[100] rounded-none' : 'w-full h-full'}
         `}>
-                <button
-                    onClick={() => setIsFullscreen(!isFullscreen)}
-                    className="absolute top-4 left-4 z-50 p-2 bg-white rounded-full shadow-md z-50"
-                >
-                    {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
-                </button>
+                <div className="flex-1 relative h-full min-w-0 bg-white/30 dark:bg-black/20 backdrop-blur-md overflow-hidden">
+                    {/* Floating Geometrics Background */}
+                    <div className="absolute top-0 -left-4 w-72 h-72 bg-purple-300 dark:bg-indigo-600/30 rounded-full mix-blend-multiply dark:mix-blend-screen filter blur-3xl opacity-70 animate-blob" />
+                    <AnimatedBackground />
 
-                {/* Add Entity Floating Button */}
-                <div className="absolute top-4 right-4 z-50">
-                    <div className="relative">
-                        <button
-                            onClick={() => showAddMenu ? closeMenu() : setShowAddMenu(true)}
-                            className="flex items-center gap-2 px-5 py-2.5 bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-gray-200/50 dark:border-gray-700/50 hover:bg-white/90 dark:hover:bg-gray-900/90 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 font-medium text-sm text-gray-900 dark:text-gray-100 hover:scale-105 active:scale-95"
-                        >
-                            <span className={`text-base transition-transform duration-300 ${showAddMenu ? 'rotate-45' : ''}`}>+</span>
-                            <span>Add</span>
-                        </button>
 
-                        {showAddMenu && (
-                            <div className={`absolute top-full right-0 mt-3 w-56 bg-white/95 dark:bg-gray-900/95 backdrop-blur-2xl border border-gray-200/50 dark:border-gray-700/50 rounded-2xl shadow-2xl overflow-hidden z-10 ${isClosing
-                                ? 'animate-out fade-out slide-out-to-top-2 zoom-out-95 duration-150'
-                                : 'animate-in fade-in slide-in-from-top-2 zoom-in-95 duration-200'
-                                }`}>
-                                {['LLM Agent', 'MCP Server', 'Client Interface', 'Database', 'Storage'].map((type, idx) => (
-                                    <button
-                                        key={type}
-                                        onClick={() => {
-                                            addNode(type);
-                                            closeMenu();
-                                        }}
-                                        className={`w-full text-left px-5 py-3.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100/80 dark:hover:bg-gray-800/80 transition-all duration-200 ${idx !== 0 ? 'border-t border-gray-100/50 dark:border-gray-800/50' : ''
-                                            }`}
-                                        style={{
-                                            animation: isClosing ? 'none' : `fadeInUp 0.3s ease-out ${idx * 0.05}s both`
-                                        }}
-                                    >
-                                        <div className="flex items-center gap-3">
-                                            <span className="text-base">
-                                                {type === 'LLM Agent' && '🤖'}
-                                                {type === 'MCP Server' && '🔌'}
-                                                {type === 'Client Interface' && '💻'}
-                                                {type === 'Database' && '🗄️'}
-                                                {type === 'Storage' && '📦'}
-                                            </span>
-                                            <span className="font-medium">{type}</span>
-                                        </div>
-                                    </button>
-                                ))}
-                            </div>
-                        )}
-                    </div>
+                    <button
+                        onClick={() => setIsFullscreen(!isFullscreen)}
+                        className="absolute top-4 left-4 z-50 p-2 bg-white rounded-full shadow-md z-50"
+                    >
+                        {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+                    </button>
+
+                    {/* Add Entity Floating Button - REMOVED */}
+
+
+                    <ReactFlow
+                        nodes={nodes}
+                        edges={edges}
+                        onNodesChange={onNodesChange}
+                        onEdgesChange={onEdgesChange}
+                        onConnect={onConnect}
+                        onNodeClick={onNodeClick}
+                        nodeTypes={nodeTypes}
+                        fitView
+                    >
+                        <Background variant={BackgroundVariant.Dots} />
+                        <Controls />
+                        {detectedPatterns.map((p, idx) => (
+                            <PatternLabel key={idx} pattern={p} />
+                        ))}
+                    </ReactFlow>
                 </div>
-
-                <ReactFlow
-                    nodes={nodes}
-                    edges={edges}
-                    onNodesChange={onNodesChange}
-                    onEdgesChange={onEdgesChange}
-                    onConnect={onConnect}
-                    onNodeClick={onNodeClick}
-                    nodeTypes={nodeTypes}
-                    fitView
-                >
-                    <Background variant={BackgroundVariant.Dots} />
-                    <Controls />
-                    {detectedPatterns.map((p, idx) => (
-                        <PatternLabel key={idx} pattern={p} />
-                    ))}
-                </ReactFlow>
 
                 <NodeDetailSidebar
                     node={selectedNode}

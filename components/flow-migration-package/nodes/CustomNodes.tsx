@@ -1,11 +1,11 @@
 import React from 'react';
 import { NodeProps } from '@xyflow/react';
-import { Cpu, Brain, Zap, Wrench, Flame, Plug, Monitor, AlertTriangle } from 'lucide-react';
+import { Cpu, Brain, Zap, Wrench, Flame, Plug, Monitor, AlertTriangle, Bot, Server, Database, Box } from 'lucide-react';
 import { TechnicalNode } from './TechnicalNode';
 import { calculateNodeBurnRate } from '../logic/pricing';
 
 export const LLMNode = ({ data, selected }: NodeProps) => {
-    let Icon = Cpu;
+    let Icon = Bot;
     let colorClass = 'text-purple-500';
 
     if (data.provider === 'Google') {
@@ -55,7 +55,7 @@ export const LLMNode = ({ data, selected }: NodeProps) => {
     return (
         <TechnicalNode
             icon={Icon}
-            label={data.shortName as string}
+            label={(data.label as string) || (data.shortName as string)}
             subLabel={data.modelId as string}
             colorClass={colorClass}
             selected={selected}
@@ -66,11 +66,23 @@ export const LLMNode = ({ data, selected }: NodeProps) => {
 };
 
 export const MCPNode = ({ data, selected }: NodeProps) => {
+    let Icon = Server;
+    let label = 'MCP Server';
+
+    const entityType = data.entityType as string;
+    if (entityType === 'Database') {
+        Icon = Database;
+        label = 'Database';
+    } else if (entityType === 'Storage') {
+        Icon = Box;
+        label = 'Storage';
+    }
+
     return (
         <TechnicalNode
-            icon={Plug}
-            label={data.shortName as string}
-            subLabel="MCP Server"
+            icon={Icon}
+            label={(data.label as string) || (data.shortName as string)}
+            subLabel={label}
             colorClass="text-emerald-500 dark:text-emerald-400"
             selected={selected}
             type="both"
@@ -82,7 +94,7 @@ export const ClientNode = ({ data, selected }: NodeProps) => {
     return (
         <TechnicalNode
             icon={Monitor}
-            label={data.shortName as string}
+            label={(data.label as string) || (data.shortName as string)}
             subLabel="Terminal / UI"
             colorClass="text-blue-600 dark:text-blue-400"
             selected={selected}

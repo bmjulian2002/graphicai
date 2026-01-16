@@ -1,10 +1,14 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Node, Edge } from '@xyflow/react';
 import {
     Terminal, Zap, X, Brain, Plug, Monitor, Database, Box, AlertTriangle,
-    Pencil, Cpu, Check, ArrowRight, GitBranch
+    Pencil, Cpu, Check, ArrowRight, ChevronRight, ChevronDown, Trash2,
+    Play, Loader2, Plus, Smartphone, FileCode
 } from 'lucide-react';
+import { MCPConfigModal } from './MCPConfigModal';
 import { ModelData } from '../types';
+import { useApiKeys } from '@/hooks/useApiKeys';
+import { generateAIResponse, Provider } from '@/app/actions/generate';
 
 interface NodeDetailSidebarProps {
     node: Node | null;
@@ -14,6 +18,14 @@ interface NodeDetailSidebarProps {
     models: ModelData[];
 }
 
+const AVAILABLE_BUCKETS = [
+    's3://production-assets',
+    's3://user-uploads',
+    'gcs://backups',
+    'azure://logs',
+    's3://cold-storage'
+];
+
 export const NodeDetailSidebar = ({
     node,
     setNodes,
@@ -21,6 +33,69 @@ export const NodeDetailSidebar = ({
     onClose,
     models
 }: NodeDetailSidebarProps) => {
+    // API Keys & Execution State
+    const { geminiKey, openaiKey, anthropicKey } = useApiKeys();
+    const [selectedBucket, setSelectedBucket] = useState(AVAILABLE_BUCKETS[0]);
+    const [userPrompt, setUserPrompt] = useState<string>('');
+    const [isGenerating, setIsGenerating] = useState(false);
+    const [generationOutput, setGenerationOutput] = useState<string | null>(null);
+
+    const getApiKey = (provider: string) => {
+        const p = provider?.toLowerCase() || '';
+        if (p.includes('gemini') || p.includes('google')) return geminiKey;
+        if (p.includes('openai') || p.includes('gpt')) return openaiKey;
+        if (p.includes('anthropic') || p.includes('claude')) return anthropicKey;
+        return '';
+    };
+
+    // Config Modal State
+    const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
+
+    const handleRunAgent = async () => {
+        if (!node) return;
+        setIsGenerating(true);
+        setGenerationOutput(null);
+
+        try {
+            const provider = (node.data.provider as string)?.toLowerCase();
+            const apiKey = getApiKey(provider);
+            const modelId = node.data.modelId as string;
+            const systemPrompt = node.data.systemPrompt as string || '';
+
+            if ((node.data.entityType === 'Client Interface')) return; // No AI for Client Interface
+
+            if (!apiKey) {
+                setGenerationOutput('Error: API Key not found. Please configure it in Settings.');
+                setIsGenerating(false);
+                return;
+            }
+
+            let apiProvider: Provider = 'gemini';
+            if (provider.includes('openai')) apiProvider = 'openai';
+            if (provider.includes('anthropic')) apiProvider = 'anthropic';
+
+            const response = await generateAIResponse({
+                provider: apiProvider,
+                apiKey,
+                modelId,
+                systemPrompt,
+                userPrompt: userPrompt || 'Hello!',
+            });
+
+            if (response.error) {
+                setGenerationOutput(`Error: ${response.error}`);
+            } else {
+                setGenerationOutput(response.content);
+            }
+        } catch (error: any) {
+            setGenerationOutput(`System Error: ${error.message}`);
+        } finally {
+            setIsGenerating(false);
+        }
+    };
+
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
     if (!node) return null;
 
     const updateNodeData = (key: string, value: any) => {
@@ -40,8 +115,6 @@ export const NodeDetailSidebar = ({
         );
     };
 
-    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-
     const deleteNode = () => {
         setShowDeleteConfirm(true);
     };
@@ -53,10 +126,12 @@ export const NodeDetailSidebar = ({
         onClose();
     };
 
+    // --- Components ---
+
     const EntityTypeDropdown = () => {
         const types = ['LLM Agent', 'MCP Server', 'Client Interface', 'Database', 'Storage'];
         const [isOpen, setIsOpen] = useState(false);
-        const dropdownRef = React.useRef<HTMLDivElement>(null);
+        const dropdownRef = useRef<HTMLDivElement>(null);
 
         useEffect(() => {
             const handleClickOutside = (event: MouseEvent) => {
@@ -88,31 +163,39 @@ export const NodeDetailSidebar = ({
 
         return (
             <div className="mb-6 relative z-50" ref={dropdownRef}>
-                <h3 className="text-[11px] font-bold text-gray-400 dark:text-gray-500 mb-2 uppercase tracking-wide flex items-center gap-1.5">
-                    <Database className="w-3.5 h-3.5" />
+                <h3 className="text-[13px] font-medium text-gray-500 dark:text-gray-400 mb-2.5 px-1">
                     Entity Type
                 </h3>
                 <button
                     onClick={() => setIsOpen(!isOpen)}
-                    className="w-full flex items-center justify-between text-sm text-gray-700 dark:text-gray-200 bg-gray-50/50 dark:bg-gray-800/30 backdrop-blur-sm border border-gray-100 dark:border-gray-700/30 rounded-xl px-4 py-3 hover:bg-white dark:hover:bg-gray-800/50 hover:border-gray-200 dark:hover:border-gray-600/50 transition-all duration-200"
+                    className="w-full flex items-center justify-between bg-gray-100/50 dark:bg-gray-800/50 backdrop-blur-md border border-gray-200/50 dark:border-gray-700/50 rounded-xl px-4 py-3 hover:bg-gray-100 dark:hover:bg-gray-800 transition-all duration-200 active:scale-[0.99]"
                 >
-                    <span className="font-medium">{node.data.entityType as string}</span>
-                    <span className="text-xs text-gray-400">Change</span>
+                    <div className="flex items-center gap-3">
+                        <div className="p-1.5 bg-gray-200 dark:bg-gray-700 rounded-lg">
+                            <Database className="w-4 h-4 text-gray-600 dark:text-gray-300" />
+                        </div>
+                        <span className="font-semibold text-gray-900 dark:text-white">{node.data.entityType as string}</span>
+                    </div>
+                    <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} />
                 </button>
 
                 {isOpen && (
-                    <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-700 rounded-xl shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 z-[100]">
-                        {types.map((type) => (
-                            <button
-                                key={type}
-                                onClick={() => handleEntityTypeChange(type)}
-                                className={`w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors
-                                ${type === node.data.entityType ? 'text-blue-600 dark:text-blue-400 font-semibold bg-blue-50 dark:bg-blue-900/10' : 'text-gray-600 dark:text-gray-300'}
-                                `}
-                            >
-                                {type}
-                            </button>
-                        ))}
+                    <div className="absolute top-full left-0 right-0 mt-2 bg-white/90 dark:bg-gray-900/90 backdrop-blur-xl border border-gray-100 dark:border-gray-800 rounded-xl shadow-2xl shadow-black/5 overflow-hidden animate-in fade-in zoom-in-95 duration-200 z-[100] ring-1 ring-black/5">
+                        <div className="p-1.5 space-y-0.5">
+                            {types.map((type) => (
+                                <button
+                                    key={type}
+                                    onClick={() => handleEntityTypeChange(type)}
+                                    className={`w-full text-left px-3 py-2.5 text-sm rounded-lg transition-colors flex items-center justify-between
+                                    ${type === node.data.entityType
+                                            ? 'bg-blue-500 text-white shadow-sm'
+                                            : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800'}`}
+                                >
+                                    <span>{type}</span>
+                                    {type === node.data.entityType && <Check className="w-4 h-4" />}
+                                </button>
+                            ))}
+                        </div>
                     </div>
                 )}
             </div>
@@ -122,7 +205,7 @@ export const NodeDetailSidebar = ({
     const ModelDropdown = () => {
         const currentModel = (node.data.modelId as string) || '';
         const [isOpen, setIsOpen] = useState(false);
-        const dropdownRef = React.useRef<HTMLDivElement>(null);
+        const dropdownRef = useRef<HTMLDivElement>(null);
 
         useEffect(() => {
             const handleClickOutside = (event: MouseEvent) => {
@@ -141,27 +224,20 @@ export const NodeDetailSidebar = ({
 
         const findCheaperAlternative = useMemo(() => {
             if (!selectedModelData || !selectedModelData.pricing) return null;
-
             const currentCost = parseFloat(selectedModelData.pricing.prompt) || 0;
             if (currentCost < 5) return null;
-
             const provider = selectedModelData.id.split('/')[0];
-
             const alternatives = models.filter(m => {
                 const cost = parseFloat(m.pricing?.prompt) || 0;
                 return cost > 0 && cost < (currentCost * 0.5);
             });
-
             const sameProviderAlt = alternatives.find(m => m.id.includes(provider) && (m.id.includes('haiku') || m.id.includes('flash') || m.id.includes('turbo')));
-
             if (sameProviderAlt) return sameProviderAlt;
-
             const popularEfficient = alternatives.find(m =>
                 m.id.includes('gemini-1.5-flash') ||
                 m.id.includes('claude-3-haiku') ||
                 m.id.includes('gpt-3.5-turbo')
             );
-
             return popularEfficient || null;
         }, [selectedModelData, models]);
 
@@ -178,51 +254,42 @@ export const NodeDetailSidebar = ({
         }, [models]);
 
         return (
-            <div className="mb-6" ref={dropdownRef}>
-                <label className="text-[11px] font-bold text-gray-400 dark:text-gray-500 mb-2 uppercase tracking-wide flex items-center justify-between">
-                    <span className="flex items-center gap-1.5">
-                        <Cpu className="w-3.5 h-3.5" />
+            <div className="mb-6 relative" ref={dropdownRef}>
+                <div className="flex items-center justify-between mb-2.5 px-1">
+                    <label className="text-[13px] font-medium text-gray-500 dark:text-gray-400">
                         AI Model
-                    </span>
+                    </label>
                     {!isOpen && suggestion && (
-                        <span className="text-[9px] font-bold text-green-600 bg-green-50 dark:bg-green-500/10 px-2 py-0.5 rounded-full cursor-help flex items-center gap-1 ring-1 ring-green-500/20" title="Cheaper alternative available">
-                            <Zap className="w-2.5 h-2.5 fill-current" />
+                        <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-100/50 dark:bg-emerald-900/30 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 ring-1 ring-emerald-500/20">
+                            <Zap className="w-3 h-3 fill-current" />
                             Smart Pick
-                        </span>
+                        </div>
                     )}
-                </label>
+                </div>
 
                 <div className="relative">
                     <button
                         onClick={() => setIsOpen(!isOpen)}
-                        className={`w-full text-left text-sm 
-                        bg-gray-50/50 dark:bg-gray-800/50 backdrop-blur-sm
-                        border transition-all duration-200
+                        className={`w-full flex items-center justify-between bg-gray-100/50 dark:bg-gray-800/50 backdrop-blur-md border rounded-xl px-4 py-3 hover:bg-gray-100 dark:hover:bg-gray-800 transition-all duration-200 active:scale-[0.99]
                         ${isOpen
-                                ? 'border-blue-500/50 ring-4 ring-blue-500/10 rounded-t-2xl rounded-b-none z-20'
-                                : 'border-gray-200/60 dark:border-gray-700/60 rounded-2xl hover:bg-gray-100/50 dark:hover:bg-gray-700/50'
-                            }
-                        px-4 py-3 flex items-center justify-between group`}
+                                ? 'border-blue-500/50 ring-2 ring-blue-500/10'
+                                : 'border-gray-200/50 dark:border-gray-700/50'}`}
                     >
-                        <span className="font-medium text-gray-700 dark:text-gray-200 truncate pr-2">
-                            {displayLabel}
-                        </span>
-                        <svg
-                            className={`w-4 h-4 text-gray-400 transition-transform duration-300 ease-out ${isOpen ? 'rotate-180 text-blue-500' : 'group-hover:text-gray-500'}`}
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                        >
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
-                        </svg>
+                        <div className="flex items-center gap-3 overflow-hidden">
+                            <div className="p-1.5 bg-gray-200 dark:bg-gray-700 rounded-lg shrink-0">
+                                <Cpu className="w-4 h-4 text-gray-600 dark:text-gray-300" />
+                            </div>
+                            <span className="font-semibold text-gray-900 dark:text-white truncate">{displayLabel}</span>
+                        </div>
+                        <ChevronDown className={`w-4 h-4 text-gray-400 shrink-0 transition-transform duration-300 ${isOpen ? 'rotate-180 text-blue-500' : ''}`} />
                     </button>
 
                     {isOpen && (
-                        <div className="absolute top-full left-0 w-full max-h-[300px] overflow-y-auto 
-                            bg-white/95 dark:bg-gray-900/95 backdrop-blur-2xl
-                            border-x border-b border-gray-200/60 dark:border-gray-700/60 
-                            rounded-b-2xl shadow-xl shadow-gray-200/20 dark:shadow-black/20 origin-top animate-in fade-in zoom-in-[0.98] duration-200
-                            z-[100]
+                        <div className="absolute top-full left-0 right-0 mt-2 max-h-[320px] overflow-y-auto 
+                            bg-white/90 dark:bg-gray-900/90 backdrop-blur-xl
+                            border border-gray-100 dark:border-gray-800
+                            rounded-xl shadow-2xl shadow-black/5 origin-top animate-in fade-in zoom-in-[0.98] duration-200
+                            z-[100] ring-1 ring-black/5 scrollbar-thin scrollbar-thumb-gray-200 dark:scrollbar-thumb-gray-700
                         ">
                             {suggestion && (
                                 <div
@@ -232,31 +299,30 @@ export const NodeDetailSidebar = ({
                                         updateNodeData('provider', suggestion.id.split('/')[0]);
                                         setIsOpen(false);
                                     }}
-                                    className="sticky top-0 z-20 m-2 p-3 rounded-xl border border-green-500/20 bg-green-50/50 dark:bg-green-500/10 cursor-pointer hover:bg-green-100/50 dark:hover:bg-green-500/20 transition-all group/banner"
+                                    className="sticky top-0 z-20 m-2 p-3 rounded-lg bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 border border-emerald-100 dark:border-emerald-500/20 cursor-pointer group"
                                 >
-                                    <div className="flex items-start gap-3">
-                                        <div className="mt-0.5 p-1.5 bg-green-500/20 rounded-full text-green-600 dark:text-green-400">
+                                    <div className="flex items-center justify-between mb-1">
+                                        <div className="flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400">
                                             <Zap className="w-3.5 h-3.5 fill-current" />
+                                            <span className="text-[10px] uppercase font-bold tracking-wider">Recommended</span>
                                         </div>
-                                        <div className="flex-1">
-                                            <h4 className="text-[10px] font-bold text-green-700 dark:text-green-400 uppercase tracking-tight mb-0.5">
-                                                Recommended
-                                            </h4>
-                                            <p className="text-xs text-gray-600 dark:text-gray-300 leading-snug">
-                                                Switch to <strong className="text-green-700 dark:text-green-400 font-bold">{suggestion.name || suggestion.id.split('/').pop()}</strong> to save &gt;50%.
-                                            </p>
-                                        </div>
-                                        <ArrowRight className="w-4 h-4 text-green-500/70 -translate-x-2 opacity-0 group-hover/banner:opacity-100 group-hover/banner:translate-x-0 transition-all duration-300" />
+                                        <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-white/50 dark:bg-black/20 px-1.5 py-0.5 rounded">Save 50%+</span>
+                                    </div>
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                                            {suggestion.name || suggestion.id.split('/').pop()}
+                                        </span>
+                                        <ArrowRight className="w-4 h-4 text-emerald-500 transition-transform group-hover:translate-x-1" />
                                     </div>
                                 </div>
                             )}
 
                             {Object.entries(groupedModels).map(([provider, providerModels]) => (
-                                <div key={provider}>
-                                    <div className="sticky top-0 z-10 px-4 py-2 bg-gray-50/90 dark:bg-gray-800/90 backdrop-blur-md border-b border-gray-100 dark:border-gray-700/50 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                                <div key={provider} className="pb-1">
+                                    <div className="sticky top-0 z-10 px-4 py-2 bg-gray-50/95 dark:bg-gray-900/95 backdrop-blur-sm border-y border-gray-100 dark:border-gray-800 text-[11px] font-bold text-gray-400 uppercase tracking-wider">
                                         {provider}
                                     </div>
-                                    <div className="p-2 space-y-0.5">
+                                    <div className="p-1.5 space-y-0.5">
                                         {providerModels.map((m: any) => (
                                             <button
                                                 key={m.id}
@@ -266,11 +332,10 @@ export const NodeDetailSidebar = ({
                                                     updateNodeData('provider', provider);
                                                     setIsOpen(false);
                                                 }}
-                                                className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-all flex items-center justify-between group/item
-                                            ${currentModel === m.id
-                                                        ? 'bg-blue-500 text-white font-medium shadow-md shadow-blue-500/20'
-                                                        : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50'
-                                                    }`}
+                                                className={`w-full text-left px-3 py-2.5 text-sm rounded-lg transition-all flex items-center justify-between
+                                                ${currentModel === m.id
+                                                        ? 'bg-blue-500 text-white shadow-sm font-medium'
+                                                        : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800'}`}
                                             >
                                                 <span className="truncate">{m.name || m.id.split('/').pop()}</span>
                                                 {currentModel === m.id && <Check className="w-4 h-4 text-white" />}
@@ -291,23 +356,44 @@ export const NodeDetailSidebar = ({
         const reverseMap = ['simple', 'medium', 'complex'];
         const currentComplexity = (node.data.taskComplexity as string) || 'simple';
         const sliderValue = complexityMap[currentComplexity as keyof typeof complexityMap] || 0;
-
         const isFree = (node.data.userHasFreeTier as boolean) || false;
 
         return (
-            <div className="mb-8 space-y-6 bg-gray-50/50 dark:bg-gray-900/30 p-4 rounded-2xl border border-gray-100/50 dark:border-gray-800/50">
-                <div className="group">
-                    <div className="flex items-center justify-between mb-3">
-                        <h3 className="text-[11px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wide flex items-center gap-1.5">
+            <div className="mb-8 p-5 bg-white dark:bg-gray-800/40 rounded-2xl border border-gray-100 dark:border-gray-700/50 space-y-6 shadow-sm">
+                <div>
+                    <div className="flex items-center justify-between mb-4">
+                        <label className="text-[13px] font-medium text-gray-500 dark:text-gray-400 flex items-center gap-2">
                             <Terminal className="w-3.5 h-3.5" />
                             Task Complexity
-                        </h3>
-                        <span className="text-[10px] font-mono text-blue-600 dark:text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded-full ring-1 ring-blue-500/20">
+                        </label>
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 ring-1 ring-blue-500/10">
                             {['1x', '3x', '10x'][sliderValue]} Multiplier
                         </span>
                     </div>
 
-                    <div className="relative pt-1 px-1">
+                    <div className="relative h-10 flex items-center">
+                        {/* Custom Slider Track */}
+                        <div className="absolute left-0 right-0 h-1.5 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+                            <div
+                                className="h-full bg-blue-500 transition-all duration-300 ease-out"
+                                style={{ width: `${(sliderValue / 2) * 100}%` }}
+                            />
+                        </div>
+
+                        {/* Steps */}
+                        <div className="absolute left-0 right-0 flex justify-between px-0.5">
+                            {[0, 1, 2].map((step) => (
+                                <div
+                                    key={step}
+                                    className={`w-3 h-3 rounded-full border-2 transition-colors duration-300 z-10
+                                    ${step <= sliderValue
+                                            ? 'bg-blue-500 border-blue-500'
+                                            : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-600'}`}
+                                />
+                            ))}
+                        </div>
+
+                        {/* Interactive Input */}
                         <input
                             type="range"
                             min="0"
@@ -315,66 +401,75 @@ export const NodeDetailSidebar = ({
                             step="1"
                             value={sliderValue}
                             onChange={(e) => updateNodeData('taskComplexity', reverseMap[parseInt(e.target.value)])}
-                            className="w-full h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full appearance-none cursor-pointer accent-blue-500 hover:accent-blue-600 transition-all"
+                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
                         />
-                        <div className="flex justify-between mt-3 text-[10px] font-medium uppercase tracking-wide">
-                            <span className={`transition-colors duration-200 ${sliderValue === 0 ? 'text-blue-600 dark:text-blue-400 font-bold scale-110' : 'text-gray-400'}`}>Simple</span>
-                            <span className={`transition-colors duration-200 ${sliderValue === 1 ? 'text-blue-600 dark:text-blue-400 font-bold scale-110' : 'text-gray-400'}`}>Medium</span>
-                            <span className={`transition-colors duration-200 ${sliderValue === 2 ? 'text-blue-600 dark:text-blue-400 font-bold scale-110' : 'text-gray-400'}`}>Complex</span>
-                        </div>
+                    </div>
+
+                    <div className="flex justify-between mt-1 px-1">
+                        {['Simple', 'Medium', 'Complex'].map((label, idx) => (
+                            <span
+                                key={label}
+                                onClick={() => updateNodeData('taskComplexity', reverseMap[idx])}
+                                className={`text-[10px] font-semibold uppercase tracking-wider cursor-pointer transition-colors duration-200 
+                                ${sliderValue === idx ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400 hover:text-gray-500'}`}
+                            >
+                                {label}
+                            </span>
+                        ))}
                     </div>
                 </div>
 
-                <div className="group">
-                    <h3 className="text-[11px] font-bold text-gray-400 dark:text-gray-500 mb-2 uppercase tracking-wide flex items-center gap-1.5">
-                        <Zap className="w-3.5 h-3.5" />
-                        Billing Mode
-                    </h3>
-                    <div className="bg-gray-200/50 dark:bg-black/40 p-1 rounded-xl flex relative">
+                <div className="h-px bg-gray-100 dark:bg-gray-700/50" />
+
+                <div>
+                    <div className="flex items-center justify-between mb-3">
+                        <label className="text-[13px] font-medium text-gray-500 dark:text-gray-400 flex items-center gap-2">
+                            <Zap className="w-3.5 h-3.5" />
+                            Billing Mode
+                        </label>
+                    </div>
+                    <div className="p-1 bg-gray-100/80 dark:bg-gray-900/50 rounded-xl flex relative group/toggle">
                         <div
-                            className={`absolute top-1 bottom-1 w-[calc(50%-4px)] bg-white dark:bg-gray-700 shadow-sm rounded-lg transition-all duration-300 cubic-bezier(0.4, 0, 0.2, 1)
+                            className={`absolute top-1 bottom-1 w-[calc(50%-4px)] bg-white dark:bg-gray-700 shadow-[0_2px_8px_rgba(0,0,0,0.08)] rounded-lg transition-all duration-300 cubic-bezier(0.34, 1.56, 0.64, 1)
                             ${isFree ? 'left-[calc(50%+2px)] translate-x-0' : 'left-1'}`}
                         />
-
                         <button
                             onClick={() => updateNodeData('userHasFreeTier', false)}
-                            className={`flex-1 relative z-10 py-2 text-xs font-semibold text-center rounded-lg transition-colors
+                            className={`flex-1 relative z-10 py-2 text-xs font-semibold text-center rounded-lg transition-colors duration-200
                             ${!isFree ? 'text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700'}`}
                         >
                             Standard
                         </button>
                         <button
                             onClick={() => updateNodeData('userHasFreeTier', true)}
-                            className={`flex-1 relative z-10 py-2 text-xs font-semibold text-center rounded-lg transition-colors flex items-center justify-center gap-1.5
+                            className={`flex-1 relative z-10 py-2 text-xs font-semibold text-center rounded-lg transition-colors duration-200 flex items-center justify-center gap-1.5
                             ${isFree ? 'text-cyan-600 dark:text-cyan-400' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700'}`}
                         >
                             <span>Free Tier</span>
                             {isFree && <Zap className="w-3 h-3 fill-current animate-pulse" />}
                         </button>
                     </div>
-                    <div className="mt-2 text-center">
-                        <span className="text-[10px] text-gray-400 font-medium">
-                            {isFree ? 'Zero cost estimation applied' : 'Standard market rates applied'}
-                        </span>
-                    </div>
+                    <p className="mt-2 text-[10px] text-center text-gray-400 font-medium">
+                        {isFree ? 'Zero cost estimation applied to this node' : 'Standard market rates applied'}
+                    </p>
                 </div>
             </div>
         );
     };
 
     const DetailItem = ({ label, value, mono = false, icon: Icon }: any) => (
-        <div className="mb-5 group">
-            <h3 className="text-[11px] font-bold text-gray-400 dark:text-gray-500 mb-2 uppercase tracking-wide flex items-center gap-1.5">
+        <div className="mb-5">
+            <h3 className="text-[13px] font-medium text-gray-500 dark:text-gray-400 mb-2.5 px-1 flex items-center gap-2">
                 {Icon && <Icon className="w-3.5 h-3.5" />}
                 {label}
             </h3>
             <div className={`
-                text-sm text-gray-700 dark:text-gray-200 
-                bg-gray-50/50 dark:bg-gray-800/30 backdrop-blur-sm
+                w-full bg-gray-50/50 dark:bg-gray-800/30 backdrop-blur-sm
                 border border-gray-100 dark:border-gray-700/30
-                rounded-xl px-4 py-3
-                transition-all duration-200 group-hover:bg-white dark:group-hover:bg-gray-800/50 group-hover:border-gray-200 dark:group-hover:border-gray-600/50
-                ${mono ? 'font-mono text-xs tracking-tight' : 'font-medium'}
+                rounded-xl px-4 py-3.5
+                text-gray-900 dark:text-gray-100
+                shadow-sm
+                ${mono ? 'font-mono text-xs' : 'text-sm font-medium'}
             `}>
                 {value}
             </div>
@@ -386,100 +481,348 @@ export const NodeDetailSidebar = ({
 
         if (entityType === 'LLM Agent') {
             return (
-                <div className="space-y-1">
+                <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 space-y-1">
                     <EntityTypeDropdown />
                     <ModelDropdown />
                     <DetailItem label="Provider" value={node.data.provider} />
 
                     <ComplexityControl />
 
-                    <div className="mb-5 group">
-                        <h3 className="text-[11px] font-bold text-gray-400 dark:text-gray-500 mb-2 uppercase tracking-wide flex items-center gap-1.5">
+                    <div className="mb-6">
+                        <label className="text-[13px] font-medium text-gray-500 dark:text-gray-400 mb-2.5 px-1 block">
                             System Prompt
-                        </h3>
+                        </label>
                         <textarea
                             value={String(node.data.systemPrompt || '')}
                             onChange={(e) => updateNodeData('systemPrompt', e.target.value)}
                             onClick={(e) => e.stopPropagation()}
                             onMouseDown={(e) => e.stopPropagation()}
-                            className="w-full text-sm text-gray-700 dark:text-gray-200 bg-gray-50/50 dark:bg-gray-800/30 backdrop-blur-sm border border-gray-100 dark:border-gray-700/30 rounded-xl px-4 py-3 transition-all duration-200 hover:bg-white dark:hover:bg-gray-800/50 hover:border-gray-200 dark:hover:border-gray-600/50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500/50 resize-none min-h-[100px]"
-                            placeholder="Enter system prompt..."
+                            className="w-full text-sm text-gray-900 dark:text-gray-100 leading-relaxed bg-white dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200 dark:border-gray-700/50 rounded-xl px-4 py-3 focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all duration-200 resize-none min-h-[140px] shadow-sm scrollbar-thin scrollbar-thumb-gray-200 dark:scrollbar-thumb-gray-700"
+                            placeholder="Describe how the agent should behave..."
                         />
                     </div>
-                    <DetailItem label="Cost / 1M" value={(() => {
+                    <DetailItem label="Estimated Cost / 1M" value={(() => {
                         const rawCost = node.data.cost as string | number;
                         let costNum = typeof rawCost === 'string' ? parseFloat(rawCost) : rawCost;
                         if (isNaN(costNum)) return 'Unknown';
                         if (costNum < 0.01 && costNum > 0) costNum = costNum * 1_000_000;
                         return `$${costNum.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 6 })}`;
                     })()} mono={true} />
+
+                    {/* Test Agent Section */}
+                    <div className="mt-8 border-t border-gray-100 dark:border-gray-800 pt-6">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-[13px] font-medium text-gray-500 dark:text-gray-400 flex items-center gap-2">
+                                <Play className="w-3.5 h-3.5" />
+                                Test Agent
+                            </h3>
+                            <button
+                                onClick={handleRunAgent}
+                                disabled={isGenerating}
+                                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold text-white transition-all
+                                ${isGenerating
+                                        ? 'bg-blue-400 cursor-wait'
+                                        : 'bg-blue-600 hover:bg-blue-700 active:scale-95 shadow-sm hover:shadow shadow-blue-500/20'}`}
+                            >
+                                {isGenerating ? (
+                                    <>
+                                        <Loader2 className="w-3 h-3 animate-spin" />
+                                        Thinking...
+                                    </>
+                                ) : (
+                                    <>
+                                        <Play className="w-3 h-3 fill-current" />
+                                        Run
+                                    </>
+                                )}
+                            </button>
+                        </div>
+
+                        <div className="space-y-3">
+                            <div>
+                                <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1.5 block px-1">
+                                    User Prompt
+                                </label>
+                                <textarea
+                                    value={userPrompt}
+                                    onChange={(e) => setUserPrompt(e.target.value)}
+                                    className="w-full text-sm text-gray-900 dark:text-gray-100 leading-relaxed bg-white dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200 dark:border-gray-700/50 rounded-xl px-4 py-3 focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all resize-none min-h-[80px] shadow-sm"
+                                    placeholder="Enter a message to test..."
+                                />
+                            </div>
+
+                            {generationOutput && (
+                                <div className="animate-in fade-in slide-in-from-top-2 duration-300">
+                                    <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1.5 block px-1">
+                                        Output
+                                    </label>
+                                    <div className="w-full bg-gray-50 dark:bg-gray-900/50 border border-gray-100 dark:border-gray-800 rounded-xl px-4 py-3 text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap font-mono max-h-[200px] overflow-y-auto custom-scrollbar">
+                                        {generationOutput}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+
                 </div>
             );
         }
 
-        if (entityType === 'MCP Server' || entityType === 'Database' || entityType === 'Storage') {
+        if (entityType === 'Storage') {
+            const currentResources: string[] = typeof (node.data as any).resources === 'string'
+                ? ((node.data as any).resources as string).split(',').filter(Boolean)
+                : (node.data as any).resources || [];
+
+            const addResource = () => {
+                if (!currentResources.includes(selectedBucket)) {
+                    const newResources = [...currentResources, selectedBucket];
+                    updateNodeData('resources', newResources.join(','));
+                }
+            };
+
+            const removeResource = (resourceToRemove: string) => {
+                const newResources = currentResources.filter(r => r !== resourceToRemove);
+                updateNodeData('resources', newResources.join(','));
+            };
+
             return (
-                <div className="space-y-1">
+                <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 space-y-1">
                     <EntityTypeDropdown />
 
-                    <div className="mb-4">
-                        <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider">Server Type</h3>
-                        <div className="text-sm text-gray-700 dark:text-gray-200 bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-md px-3 py-2.5">
-                            {entityType}
+                    <div className="mb-6 p-4 bg-gray-50 dark:bg-gray-800/40 rounded-xl border border-gray-100 dark:border-gray-800">
+                        <h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">Storage Configuration</h3>
+
+                        <div className="flex items-center gap-2 mb-4">
+                            <span className="text-sm font-semibold text-gray-900 dark:text-white">Active Buckets</span>
+                            <span className="px-2 py-0.5 rounded-full bg-blue-100/50 dark:bg-blue-900/30 text-[10px] font-bold text-blue-600 dark:text-blue-400 flex items-center gap-1">
+                                <Box className="w-3 h-3" />
+                                {currentResources.length}
+                            </span>
+                        </div>
+
+                        {/* Resource List */}
+                        <div className="space-y-2 mb-4">
+                            {currentResources.length === 0 ? (
+                                <div className="text-xs text-center py-3 text-gray-400 italic">
+                                    No buckets mounted
+                                </div>
+                            ) : (
+                                currentResources.map((resource, idx) => (
+                                    <div key={idx} className="group flex items-center justify-between gap-2 text-xs text-gray-600 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 px-3 py-2 rounded-lg shadow-sm">
+                                        <div className="flex items-center gap-2 truncate">
+                                            <Database className="w-3.5 h-3.5 text-gray-400" />
+                                            <span className="truncate">{resource}</span>
+                                        </div>
+                                        <button
+                                            onClick={() => removeResource(resource)}
+                                            className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-50 dark:hover:bg-red-900/20 text-gray-400 hover:text-red-500 rounded transition-all"
+                                        >
+                                            <X className="w-3 h-3" />
+                                        </button>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+
+                        {/* Add Resource */}
+                        <div className="flex gap-2">
+                            <div className="relative flex-1">
+                                <select
+                                    value={selectedBucket}
+                                    onChange={(e) => setSelectedBucket(e.target.value)}
+                                    className="w-full appearance-none bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg py-1.5 pl-3 pr-8 text-xs text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                                >
+                                    {AVAILABLE_BUCKETS.map(bucket => (
+                                        <option key={bucket} value={bucket} disabled={currentResources.includes(bucket)}>
+                                            {bucket}
+                                        </option>
+                                    ))}
+                                </select>
+                                <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
+                            </div>
+                            <button
+                                onClick={addResource}
+                                className="bg-blue-600 hover:bg-blue-700 text-white p-1.5 rounded-lg transition-colors shadow-sm active:scale-95 flex items-center justify-center"
+                                disabled={currentResources.includes(selectedBucket)}
+                            >
+                                <Plus className="w-4 h-4" />
+                            </button>
                         </div>
                     </div>
+                </div>
+            );
+        }
 
-                    <div className="mb-4">
-                        <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider">Available Tools</h3>
-                        <div className="flex flex-wrap gap-2">
-                            {(node.data as any).tools?.map((tool: string, idx: number) => (
-                                <span key={idx} className="text-xs font-mono bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-300 px-2 py-1 rounded border border-emerald-100 dark:border-emerald-900/30">
-                                    {tool}
+        if (entityType === 'MCP Server' || entityType === 'Database') {
+            // Extract Server Name from Config
+            let serverName = 'Server Configuration';
+            let packageName = '';
+            try {
+                const configStr = (node.data as any).mcpConfig;
+                if (configStr) {
+                    const parsed = JSON.parse(configStr);
+                    serverName = Object.keys(parsed)[0];
+                    // Try to get package name for subtitle
+                    const args = parsed[serverName]?.args || [];
+                    const pkg = args.find((a: string) => !a.startsWith('-'))?.split('@')[0];
+                    if (pkg) packageName = pkg;
+                }
+            } catch (e) { /* ignore parse error */ }
+
+            return (
+                <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 space-y-1">
+                    <EntityTypeDropdown />
+
+                    <div className="mb-6 p-4 bg-gray-50 dark:bg-gray-800/40 rounded-xl border border-gray-100 dark:border-gray-800">
+                        <h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">
+                            {entityType === 'Database' ? 'Database Config' : 'Active Server'}
+                        </h3>
+                        <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center gap-2">
+                                <span className="text-sm font-semibold text-gray-900 dark:text-white truncate max-w-[150px]" title={serverName}>
+                                    {serverName}
                                 </span>
-                            ))}
+                                <span className="px-2 py-0.5 rounded-full bg-emerald-100/50 dark:bg-emerald-900/30 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1 shrink-0">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mb-0.5" />
+                                    Active
+                                </span>
+                            </div>
+                            <button
+                                onClick={() => setIsConfigModalOpen(true)}
+                                className="p-1.5 text-gray-400 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-lg transition-all"
+                                title="Edit Configuration"
+                            >
+                                <FileCode className="w-3.5 h-3.5" />
+                            </button>
+                        </div>
+
+                        {/* Tools Section */}
+                        <div className="space-y-2">
+                            <h4 className="text-[10px] font-semibold text-gray-400 flex items-center gap-1.5 mb-2">
+                                <Terminal className="w-3 h-3" />
+                                Available Tools
+                            </h4>
+                            {(!node.data.tools || (node.data.tools as string[]).length === 0) ? (
+                                <div className="text-xs text-center py-4 border border-dashed border-gray-200 dark:border-gray-700 rounded-lg text-gray-400">
+                                    No tools detected yet.
+                                    <br />
+                                    <span className="text-[9px] opacity-70">Tools are discovered at runtime</span>
+                                </div>
+                            ) : (
+                                (node.data.tools as string[]).map((tool: string, idx: number) => (
+                                    <div key={idx} className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 px-2 py-1.5 rounded-lg transition-colors hover:border-blue-200 dark:hover:border-blue-800 cursor-default">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-blue-400" />
+                                        {tool}
+                                    </div>
+                                ))
+                            )}
                         </div>
                     </div>
 
                     <DetailItem label="Resources" value={(node.data as any).resources || 'N/A'} />
 
-                    <div className="mb-4">
-                        <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider">Status</h3>
-                        <div className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
-                            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
-                            <span>Active</span>
-                        </div>
-                    </div>
+                    <MCPConfigModal
+                        isOpen={isConfigModalOpen}
+                        onClose={() => setIsConfigModalOpen(false)}
+                        config={(node.data as any).mcpConfig || ''}
+                        onSave={(newConfig) => updateNodeData('mcpConfig', newConfig)}
+                    />
                 </div>
             );
         }
 
         if (entityType === 'Client Interface') {
             return (
-                <div className="space-y-1">
+                <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 space-y-1">
                     <EntityTypeDropdown />
 
-                    <div className="mb-4">
-                        <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider">Interface Type</h3>
-                        <div className="text-sm text-gray-700 dark:text-gray-200 bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-md px-3 py-2.5">
-                            Terminal
+                    <div className="mb-8">
+                        <div className="flex items-center justify-between px-1 mb-3">
+                            <h3 className="text-[13px] font-semibold text-gray-900 dark:text-gray-100 tracking-tight">Interface Type</h3>
+                            <span className="text-[10px] font-medium text-gray-400 bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded-full">
+                                Select one
+                            </span>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                            {[
+                                { id: 'cli', label: 'Terminal', icon: Terminal, desc: 'SSH / Shell', transport: 'SSH' },
+                                { id: 'web', label: 'Web App', icon: Monitor, desc: 'HTTPS / Browser', transport: 'HTTPS' },
+                                { id: 'mobile', label: 'Mobile', icon: Smartphone, desc: 'iOS / Android', transport: 'API' },
+                                { id: 'api', label: 'API Client', icon: Plug, desc: 'REST / gRPC', transport: 'REST' }
+                            ].map((option) => {
+                                const isActive = node.data.interfaceType === option.id || (!node.data.interfaceType && option.id === 'cli');
+                                return (
+                                    <button
+                                        key={option.id}
+                                        onClick={() => {
+                                            updateNodeData('interfaceType', option.id);
+                                            updateNodeData('transport', option.transport);
+                                            updateNodeData('shortName', option.label.split(' ')[0]);
+                                        }}
+                                        className={`
+                                            relative flex flex-col items-center justify-center p-3 rounded-2xl border text-center transition-all duration-300 group
+                                            ${isActive
+                                                ? 'bg-blue-50/50 dark:bg-blue-900/10 border-blue-200 dark:border-blue-800 shadow-[0_0_0_1px_rgba(59,130,246,0.1)] dark:shadow-none'
+                                                : 'bg-white/80 dark:bg-gray-800/40 border-gray-200/60 dark:border-gray-700/50 hover:border-gray-300 dark:hover:border-gray-600 hover:shadow-sm hover:-translate-y-0.5'
+                                            }
+                                        `}
+                                    >
+                                        {isActive && (
+                                            <div className="absolute top-2 right-2">
+                                                <div className="w-1.5 h-1.5 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.6)]" />
+                                            </div>
+                                        )}
+
+                                        <div className={`
+                                            mb-2 p-2.5 rounded-xl transition-all duration-300
+                                            ${isActive
+                                                ? 'bg-blue-500 text-white shadow-md shadow-blue-500/20 scale-100'
+                                                : 'bg-gray-100 dark:bg-gray-800 text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300 group-hover:bg-gray-200 dark:group-hover:bg-gray-700 scale-95 group-hover:scale-100'
+                                            }
+                                        `}>
+                                            <option.icon className="w-4 h-4" />
+                                        </div>
+
+                                        <span className={`text-xs font-semibold mb-0.5 transition-colors ${isActive ? 'text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400 group-hover:text-gray-700 dark:group-hover:text-gray-300'}`}>
+                                            {option.label}
+                                        </span>
+                                        <span className={`text-[9px] transition-colors ${isActive ? 'text-blue-600/80 dark:text-blue-400/80 font-medium' : 'text-gray-400 dark:text-gray-500'}`}>
+                                            {option.desc}
+                                        </span>
+                                    </button>
+                                );
+                            })}
                         </div>
                     </div>
 
-                    <DetailItem label="Transport" value={node.data.transport} mono={true} icon={Terminal} />
-                    <DetailItem label="Session ID" value={(node.data as any).sessionId || 'dev-session-01'} mono={true} />
-
-                    <div className="mb-4">
-                        <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider">Environment</h3>
-                        <div className="text-xs font-mono text-gray-700 dark:text-gray-200 bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-md px-3 py-2.5 whitespace-pre-wrap">
-                            {String(node.data.env || 'USER=developer\nSESSION_ID=dev-01')}
+                    <div className="space-y-3 pt-2">
+                        <div className="flex items-center justify-between px-1 mb-3">
+                            <h3 className="text-[13px] font-semibold text-gray-900 dark:text-gray-100 tracking-tight">Project Memory</h3>
+                            <span className="text-[10px] font-medium text-gray-400 bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded-full">
+                                Absolute Context
+                            </span>
                         </div>
-                    </div>
 
-                    <div className="mb-4">
-                        <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider">Status</h3>
-                        <div className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
-                            <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></div>
-                            <span>Connected</span>
+                        <div className="group relative">
+                            <div className="absolute -inset-0.5 bg-gradient-to-br from-blue-500/20 to-purple-500/20 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 blur-sm" />
+                            <div className="relative bg-white/50 dark:bg-gray-900/50 backdrop-blur-xl border border-gray-200/60 dark:border-gray-800 rounded-2xl p-1 transition-all group-focus-within:border-blue-500/50 group-focus-within:bg-white dark:group-focus-within:bg-gray-900 shadow-sm">
+                                <textarea
+                                    value={String(node.data.sharedContext || '')}
+                                    onChange={(e) => updateNodeData('sharedContext', e.target.value)}
+                                    // Prevent drag events from propagating to node
+                                    onMouseDown={(e) => e.stopPropagation()}
+                                    className="w-full bg-transparent border-0 text-xs text-gray-600 dark:text-gray-300 placeholder:text-gray-400 leading-relaxed px-4 py-3 min-h-[140px] resize-none focus:outline-none focus:ring-0 font-medium tracking-wide selection:bg-blue-100 dark:selection:bg-blue-900/30 scrollbar-thin scrollbar-thumb-gray-200 dark:scrollbar-thumb-gray-700"
+                                    placeholder="Define absolute rules, coding standards, or context here. This memory is injected into every connected agent..."
+                                    spellCheck={false}
+                                />
+                                <div className="px-4 pb-3 pt-1 flex justify-end border-t border-gray-100/50 dark:border-gray-800/50 mt-1">
+                                    <p className="text-[9px] font-medium text-gray-400 group-focus-within:text-blue-500 transition-colors pt-2">
+                                        Injected to connected agents
+                                    </p>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -488,22 +831,25 @@ export const NodeDetailSidebar = ({
 
         if (entityType === 'System Error') {
             return (
-                <div className="space-y-1">
+                <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 space-y-1">
                     <EntityTypeDropdown />
 
-                    <div className="mb-4">
-                        <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider">Error Type</h3>
-                        <div className="text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-900/30 rounded-md px-3 py-2.5 font-medium">
-                            Protocol Violation
+                    <div className="p-5 bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/30 rounded-2xl mb-6">
+                        <div className="flex items-center gap-3 mb-3 text-red-700 dark:text-red-400">
+                            <AlertTriangle className="w-5 h-5" />
+                            <span className="font-bold text-sm">Protocol Violation</span>
+                        </div>
+                        <p className="text-sm text-red-600 dark:text-red-300 leading-relaxed mb-3">
+                            {(node.data.message as string) || 'Direct MCP connections are not allowed'}
+                        </p>
+                        <div className="text-xs font-mono bg-red-100/50 dark:bg-red-900/20 text-red-800 dark:text-red-200 px-3 py-2 rounded-lg">
+                            Code: MCP_DIRECT_CONNECTION
                         </div>
                     </div>
 
-                    <DetailItem label="Error Code" value="MCP_DIRECT_CONNECTION" mono={true} />
-                    <DetailItem label="Message" value={node.data.message || 'Direct MCP connections are not allowed'} />
-
-                    <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-900/30 rounded-md text-xs text-red-600 dark:text-red-400">
-                        <strong>Suggested Fix:</strong>
-                        <ul className="mt-2 ml-4 list-disc space-y-1">
+                    <div className="px-5 py-4 bg-orange-50 dark:bg-orange-900/10 border border-orange-100 dark:border-orange-900/30 rounded-2xl">
+                        <h4 className="text-xs font-bold text-orange-700 dark:text-orange-400 uppercase tracking-wider mb-2">Suggested Fix</h4>
+                        <ul className="list-disc list-inside text-sm text-orange-800 dark:text-orange-300 space-y-1">
                             <li>Add an LLM Agent between Client and MCP Server</li>
                             <li>Route through Orchestrator</li>
                         </ul>
@@ -515,6 +861,7 @@ export const NodeDetailSidebar = ({
         return null;
     };
 
+    // --- Detail Panel Render ---
     return (
         <>
             <div
@@ -522,91 +869,97 @@ export const NodeDetailSidebar = ({
                 onClick={onClose}
             />
 
-            <div className="fixed md:right-6 md:top-24 md:bottom-6 md:w-96 md:h-auto md:rounded-[32px] md:translate-y-0 bottom-0 left-0 right-0 h-[85vh] rounded-t-[32px] w-full bg-white/80 dark:bg-gray-900/80 backdrop-blur-2xl border border-white/20 dark:border-gray-700/30 shadow-2xl z-[60] overflow-hidden flex flex-col ring-1 ring-black/5 dark:ring-white/5 animate-in slide-in-from-bottom-full md:slide-in-from-right-4 duration-300 md:duration-300 ease-out">
+            <div className="fixed md:static md:w-[450px] md:h-full md:border-l md:border-gray-200 dark:md:border-gray-800 md:shrink-0 md:rounded-none md:shadow-none bottom-0 left-0 right-0 h-[85vh] rounded-t-[32px] w-full bg-white/90 dark:bg-[#1c1c1e]/90 backdrop-blur-3xl shadow-[0_0_50px_-12px_rgba(0,0,0,0.25)] z-[60] overflow-hidden flex flex-col ring-1 ring-black/5 dark:ring-white/10 animate-in slide-in-from-bottom-full md:slide-in-from-right duration-700 ease-[cubic-bezier(0.19,1,0.22,1)]">
+
+                {/* Header */}
                 <div className="md:hidden w-full flex items-center justify-center pt-3 pb-1">
-                    <div className="w-12 h-1.5 rounded-full bg-gray-300 dark:bg-gray-700"></div>
+                    <div className="w-12 h-1.5 rounded-full bg-gray-300/50 dark:bg-gray-600/50"></div>
                 </div>
-                <div className="px-6 py-5 flex items-start gap-4 bg-white/50 dark:bg-gray-800/50 backdrop-blur-md sticky top-0 z-10">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/30 text-white shrink-0">
-                        {((node.data.entityType as string) === 'LLM Agent' || !node.data.entityType) && <Brain className="w-5 h-5" />}
-                        {node.data.entityType === 'MCP Server' && <Plug className="w-5 h-5" />}
-                        {node.data.entityType === 'Client Interface' && <Monitor className="w-5 h-5" />}
-                        {node.data.entityType === 'Database' && <Database className="w-5 h-5" />}
-                        {node.data.entityType === 'Storage' && <Box className="w-5 h-5" />}
-                        {node.data.entityType === 'System Error' && <AlertTriangle className="w-5 h-5" />}
+
+                <div className="px-6 py-5 flex items-start gap-4 border-b border-gray-100/50 dark:border-gray-700/50 shrink-0">
+                    <div className="w-12 h-12 rounded-[18px] bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/20 text-white shrink-0 ring-4 ring-white dark:ring-gray-800">
+                        {((node.data.entityType as string) === 'LLM Agent' || !node.data.entityType) && <Brain className="w-6 h-6" />}
+                        {node.data.entityType === 'MCP Server' && <Plug className="w-6 h-6" />}
+                        {node.data.entityType === 'Client Interface' && <Monitor className="w-6 h-6" />}
+                        {node.data.entityType === 'Database' && <Database className="w-6 h-6" />}
+                        {node.data.entityType === 'Storage' && <Box className="w-6 h-6" />}
+                        {node.data.entityType === 'System Error' && <AlertTriangle className="w-6 h-6" />}
                     </div>
 
-                    <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                            <div className="relative flex-1">
+                    <div className="flex-1 min-w-0 pt-0.5">
+                        <div className="flex items-center justify-between gap-2">
+                            <div className="relative group flex-1">
                                 <input
                                     type="text"
                                     value={(node.data as any).label}
                                     onChange={(e) => updateNodeData('label', e.target.value)}
-                                    className="w-full bg-gray-100 dark:bg-gray-800 border border-transparent focus:border-blue-500/50 rounded-lg pl-3 pr-8 py-1.5 text-sm font-bold text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all duration-200 shadow-inner"
+                                    className="w-full bg-transparent hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg px-2 -ml-2 py-1 text-lg font-bold text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all truncate"
                                     placeholder="Node Name"
                                 />
-                                <Pencil className="w-3.5 h-3.5 text-gray-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                                <Pencil className="w-3.5 h-3.5 text-gray-400 absolute right-0 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
                             </div>
                             <button
                                 onClick={onClose}
-                                className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100/50 dark:bg-gray-800/50 hover:bg-gray-200/50 dark:hover:bg-gray-700/50 transition-colors text-gray-500 backdrop-blur-sm shrink-0"
+                                className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors text-gray-500"
                             >
-                                <X className="w-4 h-4" />
+                                <X className="w-5 h-5" />
                             </button>
                         </div>
-                        <p className="text-[10px] uppercase tracking-wider font-semibold text-gray-500 dark:text-gray-400 mt-1.5 ml-1">
-                            {String(node.data.entityType || 'Entity')}
+                        <p className="text-[11px] uppercase tracking-wide font-semibold text-blue-600 dark:text-blue-400 opacity-80">
+                            {String(node.data.entityType || 'Entity Configuration')}
                         </p>
                     </div>
                 </div>
 
-                <div className="p-6 flex-1 overflow-y-auto custom-scrollbar">
+                {/* Content */}
+                <div className="flex-1 overflow-y-auto px-6 py-6 custom-scrollbar scroll-smooth">
                     {renderDetails()}
                 </div>
 
-                <div className="p-6 bg-gray-50/50 dark:bg-gray-900/30 backdrop-blur-sm border-t border-gray-100/10 dark:border-gray-800/10 space-y-4">
+                {/* Footer */}
+                <div className="p-6 bg-gray-50/80 dark:bg-gray-900/80 backdrop-blur-md border-t border-gray-100 dark:border-gray-800 shrink-0 space-y-3">
                     <button
                         onClick={deleteNode}
-                        className="w-full h-12 flex items-center justify-center gap-2 bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400 rounded-2xl transition-all duration-200 font-semibold text-sm border border-red-500/10 active:scale-[0.98]"
+                        className="w-full h-12 flex items-center justify-center gap-2 bg-white dark:bg-gray-800 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-all duration-200 font-semibold text-sm border border-gray-200 dark:border-gray-700 hover:border-red-200 dark:hover:border-red-800/30 active:scale-[0.98] shadow-sm"
                     >
-                        <span className="text-lg">🗑️</span>
+                        <Trash2 className="w-4 h-4" />
                         <span>Delete Entity</span>
                     </button>
-                    <div className="text-[10px] text-gray-400/60 text-center font-mono">
-                        ID: {node.id.split('-').slice(-1)[0]}
+                    <div className="flex justify-center">
+                        <span className="text-[10px] font-mono text-gray-400 px-2 py-1 rounded bg-gray-100 dark:bg-gray-800">
+                            ID: {node.id.split('-').slice(-1)[0]}
+                        </span>
                     </div>
                 </div>
+
+                {/* Delete Confirmation Modal */}
                 {showDeleteConfirm && (
                     <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
                         <div
-                            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+                            className="absolute inset-0 bg-black/20 backdrop-blur-sm"
                             onClick={() => setShowDeleteConfirm(false)}
                         />
 
-                        <div className="relative bg-white dark:bg-gray-900 rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-                            <div className="p-6 text-center border-b border-gray-100 dark:border-gray-800">
-                                <div className="w-14 h-14 mx-auto mb-4 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
-                                    <span className="text-2xl">🗑️</span>
-                                </div>
-                                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
-                                    Delete "{String(node.data.label)}"?
+                        <div className="relative bg-white/95 dark:bg-[#1c1c1e]/95 backdrop-blur-xl rounded-[24px] shadow-2xl max-w-xs w-full overflow-hidden animate-in fade-in zoom-in-95 duration-200 ring-1 ring-black/5">
+                            <div className="pt-8 px-6 pb-6 text-center">
+                                <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2 leading-tight">
+                                    Delete this node?
                                 </h3>
-                                <p className="text-sm text-gray-500 dark:text-gray-400">
-                                    This will also remove all connected edges. This action cannot be undone.
+                                <p className="text-[13px] text-gray-500 dark:text-gray-400 leading-relaxed">
+                                    This action cannot be undone and will remove all connected edges.
                                 </p>
                             </div>
 
-                            <div className="flex">
+                            <div className="flex border-t border-gray-200/50 dark:border-gray-700/50 divide-x divide-gray-200/50 dark:divide-gray-700/50">
                                 <button
                                     onClick={() => setShowDeleteConfirm(false)}
-                                    className="flex-1 px-6 py-4 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors border-r border-gray-100 dark:border-gray-800"
+                                    className="flex-1 py-3.5 text-[15px] font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
                                 >
                                     Cancel
                                 </button>
                                 <button
                                     onClick={confirmDelete}
-                                    className="flex-1 px-6 py-4 text-sm font-semibold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                                    className="flex-1 py-3.5 text-[15px] font-bold text-red-600 dark:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
                                 >
                                     Delete
                                 </button>
