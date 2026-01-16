@@ -697,30 +697,7 @@ export const NodeDetailSidebar = ({
                             </button>
                         </div>
 
-                        {/* Tools Section */}
-                        <div className="space-y-2">
-                            <h4 className="text-[10px] font-semibold text-gray-400 flex items-center gap-1.5 mb-2">
-                                <Terminal className="w-3 h-3" />
-                                Available Tools
-                            </h4>
-                            {(!node.data.tools || (node.data.tools as string[]).length === 0) ? (
-                                <div className="text-xs text-center py-4 border border-dashed border-gray-200 dark:border-gray-700 rounded-lg text-gray-400">
-                                    No tools detected yet.
-                                    <br />
-                                    <span className="text-[9px] opacity-70">Tools are discovered at runtime</span>
-                                </div>
-                            ) : (
-                                (node.data.tools as string[]).map((tool: string, idx: number) => (
-                                    <div key={idx} className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 px-2 py-1.5 rounded-lg transition-colors hover:border-blue-200 dark:hover:border-blue-800 cursor-default">
-                                        <div className="w-1.5 h-1.5 rounded-full bg-blue-400" />
-                                        {tool}
-                                    </div>
-                                ))
-                            )}
-                        </div>
                     </div>
-
-                    <DetailItem label="Resources" value={(node.data as any).resources || 'N/A'} />
 
                     <MCPConfigModal
                         isOpen={isConfigModalOpen}
