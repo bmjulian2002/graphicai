@@ -901,35 +901,50 @@ export const NodeDetailSidebar = ({
                     <div className="w-12 h-1.5 rounded-full bg-gray-300/50 dark:bg-gray-600/50"></div>
                 </div>
 
-                <div className="px-6 py-5 flex items-start gap-4 border-b border-gray-100/50 dark:border-gray-700/50 shrink-0">
-                    <div className="w-12 h-12 rounded-[18px] bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/20 text-white shrink-0 ring-4 ring-white dark:ring-gray-800">
-                        {((node.data.entityType as string) === 'LLM Agent' || !node.data.entityType) && <Brain className="w-6 h-6" />}
-                        {node.data.entityType === 'MCP Server' && <Plug className="w-6 h-6" />}
-                        {node.data.entityType === 'Client Interface' && <Monitor className="w-6 h-6" />}
-                        {node.data.entityType === 'Database' && <Database className="w-6 h-6" />}
-                        {node.data.entityType === 'Storage' && <Box className="w-6 h-6" />}
-                        {node.data.entityType === 'System Error' && <AlertTriangle className="w-6 h-6" />}
-                    </div>
-
-                    <div className="flex-1 min-w-0 pt-0.5">
-                        <div className="flex items-center justify-between gap-2">
-                            <div className="relative group flex-1">
-                                <input
-                                    type="text"
-                                    value={(node.data as any).label}
-                                    onChange={(e) => updateNodeData('label', e.target.value)}
-                                    className="w-full bg-transparent hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg px-2 -ml-2 py-1 text-lg font-bold text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all truncate"
-                                    placeholder="Node Name"
-                                />
-                                <Pencil className="w-3.5 h-3.5 text-gray-400 absolute right-0 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
-                            </div>
-                            <button
-                                onClick={onClose}
-                                className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors text-gray-500"
-                            >
-                                <X className="w-5 h-5" />
-                            </button>
+                {/* iOS-like Sticky Header */}
+                <div className="sticky top-0 z-10 px-5 py-4 border-b border-gray-200/50 dark:border-white/5 bg-white/80 dark:bg-[#1c1c1e]/80 backdrop-blur-xl transition-all duration-300">
+                    <div className="flex items-center gap-4 mb-1">
+                        {/* Node Icon */}
+                        <div className="w-12 h-12 rounded-[18px] bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/20 text-white shrink-0 ring-4 ring-white dark:ring-gray-800">
+                            {node.data.entityType === 'LLM Agent' && <Brain className="w-6 h-6" />}
+                            {node.data.entityType === 'MCP Server' && <server className="w-6 h-6" />}
+                            {node.data.entityType === 'Client Interface' && <Monitor className="w-6 h-6" />}
+                            {node.data.entityType === 'Database' && <Database className="w-6 h-6" />}
+                            {node.data.entityType === 'Storage' && <Box className="w-6 h-6" />}
+                            {node.data.entityType === 'System Error' && <AlertTriangle className="w-6 h-6" />}
+                            {/* Fallback if needed, though strictly typed usually */}
+                            {!['LLM Agent', 'MCP Server', 'Client Interface', 'Database', 'Storage', 'System Error'].includes(node.data.entityType as string) && <Box className="w-6 h-6" />}
                         </div>
+
+                        <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between gap-3">
+                                <div className="flex-1">
+                                    {/* Node Label Input with Always Visible Pencil */}
+                                    <div className="group flex items-center gap-2 bg-gray-50 dark:bg-white/5 rounded-xl px-3 py-2 border border-transparent focus-within:border-blue-500/50 focus-within:bg-white dark:focus-within:bg-black/20 focus-within:shadow-sm transition-all duration-200">
+                                        <input
+                                            type="text"
+                                            value={(node.data as any).label}
+                                            onChange={(e) => updateNodeData('label', e.target.value)}
+                                            className="w-full bg-transparent text-sm font-semibold text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none"
+                                            placeholder="Node Name"
+                                        />
+                                        <Pencil className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                                    </div>
+                                </div>
+
+                                <div className="flex items-center gap-1 shrink-0">
+                                    {/* Close Action */}
+                                    <button
+                                        onClick={onClose}
+                                        className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/5 rounded-full transition-all duration-200"
+                                    >
+                                        <X className="w-5 h-5" />
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="pl-[64px]"> {/* Align with text, offset by icon width (48px) + gap (16px) */}
                         <p className="text-[11px] uppercase tracking-wide font-semibold text-blue-600 dark:text-blue-400 opacity-80">
                             {String(node.data.entityType || 'Entity Configuration')}
                         </p>
