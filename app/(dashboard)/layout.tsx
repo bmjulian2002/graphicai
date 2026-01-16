@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter, usePathname } from 'next/navigation';
-import { LogOut, Moon, Sun, ArrowLeft, Download, Settings, Bot, Server, Monitor, Database, Box, FileBox, FileJson, Upload } from 'lucide-react';
+import { LogOut, Moon, Sun, ArrowLeft, Download, Settings, Bot, Server, Monitor, Database, Box, FileBox, FileJson, Upload, MoreVertical, ChevronUp } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { ImportFlowModal } from '@/components/ImportFlowModal';
@@ -296,33 +296,80 @@ export default function DashboardLayout({
                             </div>
                         </div>
 
-                        {/* System Footer */}
-                        <div className="p-5 border-t border-gray-200/50 dark:border-white/5 bg-gray-50/50 dark:bg-black/20 backdrop-blur-xl">
-                            <h2 className="text-[10px] font-bold text-gray-400 dark:text-gray-600 uppercase tracking-wider mb-3 px-1">
-                                Acciones del Sistema
-                            </h2>
-                            <div className="space-y-1">
+                        {/* Redesigned Footer: Profile + Settings + System Menu */}
+                        <div className="p-4 border-t border-gray-200/50 dark:border-white/5 bg-gray-50/50 dark:bg-black/20 backdrop-blur-xl">
+                            <div className="flex items-center justify-between gap-2">
+                                {/* Profile Info */}
                                 <button
-                                    onClick={() => window.dispatchEvent(new CustomEvent('export-workbench-zip'))}
-                                    className="w-full flex items-center gap-3 px-3 py-2 text-xs font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5 rounded-lg transition-colors"
+                                    onClick={() => setShowSettingsModal(true)}
+                                    className="flex items-center gap-3 min-w-0 flex-1 hover:bg-white/50 dark:hover:bg-white/5 p-2 rounded-xl transition-all duration-200 text-left group border border-transparent hover:border-gray-200/50 dark:hover:border-white/5"
                                 >
-                                    <FileBox className="w-4 h-4" />
-                                    <span>Exportar Mesa de Trabajo</span>
+                                    <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-600 to-purple-600 flex items-center justify-center text-white text-xs font-bold ring-2 ring-white dark:ring-gray-800 shadow-sm group-hover:scale-105 transition-transform">
+                                        {user?.email?.[0]?.toUpperCase() || 'U'}
+                                    </div>
+                                    <div className="flex flex-col min-w-0">
+                                        <span className="text-xs font-semibold text-gray-900 dark:text-white truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                                            {user?.email?.split('@')[0] || 'Usuario'}
+                                        </span>
+                                        <span className="text-[10px] text-gray-400 truncate">
+                                            Configuración
+                                        </span>
+                                    </div>
                                 </button>
-                                <button
-                                    onClick={() => window.dispatchEvent(new CustomEvent('export-flow'))}
-                                    className="w-full flex items-center gap-3 px-3 py-2 text-xs font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5 rounded-lg transition-colors"
-                                >
-                                    <Download className="w-4 h-4" />
-                                    <span>Exportar Configuración</span>
-                                </button>
-                                <button
-                                    onClick={() => setShowImportModal(true)}
-                                    className="w-full flex items-center gap-3 px-3 py-2 text-xs font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5 rounded-lg transition-colors"
-                                >
-                                    <Download className="w-4 h-4 rotate-180" />
-                                    <span>Importar Configuración</span>
-                                </button>
+
+                                {/* Actions Right */}
+                                <div className="flex items-center gap-1">
+                                    {/* Theme Toggle */}
+                                    <button
+                                        onClick={() => setDarkMode(!darkMode)}
+                                        className="p-2 text-gray-500 hover:text-amber-500 dark:text-gray-400 dark:hover:text-yellow-400 hover:bg-white dark:hover:bg-white/10 rounded-lg transition-all duration-200"
+                                        title={darkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
+                                    >
+                                        {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+                                    </button>
+
+                                    {/* System Menu Dropdown */}
+                                    <div className="relative group">
+                                        <button className="p-2 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-white dark:hover:bg-white/10 rounded-lg transition-all duration-200">
+                                            <MoreVertical className="w-4 h-4" />
+                                        </button>
+
+                                        {/* Dropdown Content - Popover Upwards */}
+                                        <div className="absolute bottom-full right-0 mb-3 w-60 bg-white/90 dark:bg-[#1c1c1e]/90 backdrop-blur-xl rounded-2xl shadow-2xl border border-gray-200/60 dark:border-white/10 overflow-hidden hidden group-hover:block hover:block animate-in slide-in-from-bottom-2 fade-in duration-200 p-1.5 z-50">
+                                            <div className="px-2 py-1.5 border-b border-gray-100 dark:border-white/5 mb-1">
+                                                <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Acciones del Sistema</span>
+                                            </div>
+
+                                            <button
+                                                onClick={() => window.dispatchEvent(new CustomEvent('export-workbench-zip'))}
+                                                className="w-full flex items-center gap-3 px-3 py-2.5 text-xs font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10 rounded-xl transition-colors"
+                                            >
+                                                <div className="p-1.5 bg-rose-100 dark:bg-rose-900/30 text-rose-600 rounded-lg">
+                                                    <FileBox className="w-3.5 h-3.5" />
+                                                </div>
+                                                <span>Exportar Workbench</span>
+                                            </button>
+                                            <button
+                                                onClick={() => window.dispatchEvent(new CustomEvent('export-flow'))}
+                                                className="w-full flex items-center gap-3 px-3 py-2.5 text-xs font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10 rounded-xl transition-colors"
+                                            >
+                                                <div className="p-1.5 bg-blue-100 dark:bg-blue-900/30 text-blue-600 rounded-lg">
+                                                    <Download className="w-3.5 h-3.5" />
+                                                </div>
+                                                <span>Exportar Config</span>
+                                            </button>
+                                            <button
+                                                onClick={() => setShowImportModal(true)}
+                                                className="w-full flex items-center gap-3 px-3 py-2.5 text-xs font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10 rounded-xl transition-colors"
+                                            >
+                                                <div className="p-1.5 bg-purple-100 dark:bg-purple-900/30 text-purple-600 rounded-lg">
+                                                    <Upload className="w-3.5 h-3.5" />
+                                                </div>
+                                                <span>Importar Flujo</span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </aside>
