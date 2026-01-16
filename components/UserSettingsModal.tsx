@@ -124,101 +124,107 @@ export const UserSettingsModal = ({ isOpen, onClose }: UserSettingsModalProps) =
                                         setValidationError(null);
                                         setSaveStatus(null);
                                     }}
-                                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 ${selectedProvider === p.id
-                                        ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-sm ring-1 ring-gray-200 dark:ring-gray-700'
-                                        : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800/50 hover:text-gray-900 dark:hover:text-gray-200'
-                                        }`}
-                                >
-                                    <p.icon className={`w-4 h-4 ${p.color}`} />
-                                    <span>{p.name}</span>
-                                    {inputs[p.id] && (
-                                        <div className="ml-auto w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                                    )}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-                </div>
-
-                {/* Main Content */}
-                <div className="flex-1 p-8 flex flex-col relative">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/20 dark:bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="bg-white dark:bg-[#1c1c1e] w-full max-w-md rounded-[24px] shadow-2xl border border-gray-200/50 dark:border-white/10 overflow-hidden flex flex-col max-h-[90vh]">
+                
+                {/* Header */}
+                <div className="px-6 py-4 border-b border-gray-100 dark:border-white/5 flex items-center justify-between bg-white/50 dark:bg-white/5 backdrop-blur-xl">
+                    <h2 className="text-base font-bold text-gray-900 dark:text-white">Ajustes</h2>
                     <button
                         onClick={onClose}
-                        className="absolute top-6 right-6 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                        className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full transition-colors"
                     >
                         <X className="w-5 h-5" />
                     </button>
+                </div>
 
-                    <div className="flex-1">
-                        <div className="mb-6">
-                            <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                                <Key className="w-5 h-5 text-blue-500" />
-                                Bring Your Own Key (BYOK)
-                            </h3>
-                            <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
-                                {providers.find(p => p.id === selectedProvider)?.desc}
-                            </p>
-                        </div>
+                {/* Segmented Control */}
+                <div className="px-6 pt-5 pb-2">
+                    <div className="flex p-1 bg-gray-100 dark:bg-black/40 rounded-xl">
+                        <button
+                            onClick={() => setActiveTab('profile')}
+                            className={`flex-1 flex items-center justify-center gap-2 py-2 text-xs font-semibold rounded-lg transition-all duration-200 ${
+                                activeTab === 'profile'
+                                    ? 'bg-white dark:bg-[#2c2c2e] text-gray-900 dark:text-white shadow-sm'
+                                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                            }`}
+                        >
+                            <User className="w-3.5 h-3.5" />
+                            Perfil
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('api')}
+                            className={`flex-1 flex items-center justify-center gap-2 py-2 text-xs font-semibold rounded-lg transition-all duration-200 ${
+                                activeTab === 'api'
+                                    ? 'bg-white dark:bg-[#2c2c2e] text-gray-900 dark:text-white shadow-sm'
+                                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                            }`}
+                        >
+                            <Key className="w-3.5 h-3.5" />
+                            API Keys
+                        </button>
+                    </div>
+                </div>
 
+                {/* Content */}
+                <div className="flex-1 overflow-y-auto px-6 py-4">
+                    {activeTab === 'profile' ? (
                         <div className="space-y-6">
-                            <div className="space-y-2">
-                                <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">
-                                    {providers.find(p => p.id === selectedProvider)?.name} API Key
-                                </label>
-                                <div className="relative">
-                                    <input
-                                        type={showKey ? "text" : "password"}
-                                        value={inputs[selectedProvider]}
-                                        onChange={(e) => {
-                                            setInputs(prev => ({ ...prev, [selectedProvider]: e.target.value }));
-                                            setValidationError(null);
-                                        }}
-                                        className={`w-full pl-4 pr-12 py-3 bg-gray-50 dark:bg-gray-900 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm font-mono text-gray-900 dark:text-white transition-all ${validationError
-                                                ? 'border-red-500 focus:ring-red-500'
-                                                : 'border-gray-200 dark:border-gray-700'
-                                            }`}
-                                        placeholder={`sk-...`}
-                                        disabled={isValidating}
-                                    />
-                                    {validationError && (
-                                        <p className="text-red-500 text-xs mt-1 font-medium animate-in slide-in-from-top-1">
-                                            {validationError}
-                                        </p>
-                                    )}
-                                    <button
-                                        onClick={() => setShowKey(!showKey)}
-                                        className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-lg transition-colors"
-                                    >
-                                        {showKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                                    </button>
+                            {/* Profile Card */}
+                            <div className="flex items-center gap-4 p-4 bg-gray-50/50 dark:bg-white/5 rounded-2xl border border-gray-100 dark:border-white/5">
+                                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-2xl font-bold shadow-lg shadow-blue-500/20 ring-4 ring-white dark:ring-gray-800">
+                                    {user?.email?.[0]?.toUpperCase() || 'U'}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <h3 className="text-lg font-bold text-gray-900 dark:text-white truncate">
+                                        {user?.email?.split('@')[0] || 'Usuario'}
+                                    </h3>
+                                    <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
+                                        {user?.email || 'usuario@example.com'}
+                                    </p>
+                                    <div className="flex items-center gap-2 mt-2">
+                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 text-[10px] font-bold uppercase tracking-wide">
+                                            <Shield className="w-3 h-3" />
+                                            Pro Plan
+                                        </span>
+                                    </div>
                                 </div>
                             </div>
 
-                            <div className="bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 p-4 rounded-xl text-xs leading-relaxed flex gap-3">
-                                <ShieldCheck className="w-5 h-5 min-w-[20px]" />
-                                <p>
-                                    Tu clave se guarda <strong>exclusivamente en tu navegador</strong> (LocalStorage).
-                                    Nunca se envía a nuestra base de datos ni servidores. Tú tienes el control total.
+                            {/* Info Section */}
+                            <div className="space-y-1">
+                                <div className="flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
+                                    <div className="flex items-center gap-3">
+                                        <div className="p-2 rounded-lg bg-blue-100/50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400">
+                                            <Info className="w-4 h-4" />
+                                        </div>
+                                        <span className="text-sm font-medium text-gray-700 dark:text-gray-200">Versión</span>
+                                    </div>
+                                    <span className="text-xs font-bold text-gray-400 dark:text-gray-500">v2.0.1</span>
+                                </div>
+                            </div>
+
+                            {/* Logout */}
+                            <button
+                                onClick={handleLogout}
+                                disabled={isLoading}
+                                className="w-full flex items-center justify-center gap-2 p-3.5 rounded-xl border border-red-200 dark:border-red-900/30 bg-red-50 dark:bg-red-900/10 text-red-600 dark:text-red-400 font-semibold text-sm hover:bg-red-100 dark:hover:bg-red-900/20 transition-all duration-200 disabled:opacity-50"
+                            >
+                                <LogOut className="w-4 h-4" />
+                                {isLoading ? 'Cerrando sesión...' : 'Cerrar Sesión'}
+                            </button>
+                        </div>
+                    ) : (
+                        <div className="space-y-5">
+                            <div className="bg-blue-50 dark:bg-blue-900/10 p-4 rounded-xl border border-blue-100 dark:border-blue-900/20">
+                                <h4 className="flex items-center gap-2 text-xs font-bold text-blue-700 dark:text-blue-400 uppercase tracking-wide mb-1">
+                                    <Shield className="w-3.5 h-3.5" />
+                                    Almacenamiento Seguro
+                                </h4>
+                                <p className="text-xs text-blue-600/80 dark:text-blue-400/70 leading-relaxed">
+                                    Tus claves se guardan localmente en tu navegador. Nunca se envían a nuestros servidores excepto para hacer peticiones directas a los proveedores.
                                 </p>
                             </div>
-                        </div>
-                    </div>
-
-                    <div className="pt-6 border-t border-gray-100 dark:border-gray-800 flex justify-end">
-                        <button
-                            onClick={() => handleSave(selectedProvider)}
-                            disabled={isValidating || !inputs[selectedProvider]}
-                            className={`
-                                flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-semibold transition-all duration-300
-                                ${saveStatus === selectedProvider
-                                    ? 'bg-emerald-500 text-white shadow-emerald-500/30'
-                                    : 'bg-gray-900 dark:bg-white text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-100 shadow-lg hover:shadow-xl'}
-                                disabled:opacity-50 disabled:cursor-not-allowed
-                            `}
-                        >
-                            {isValidating ? (
-                                <>
-                                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                                     Validando...
                                 </>
                             ) : saveStatus === selectedProvider ? (
@@ -236,6 +242,6 @@ export const UserSettingsModal = ({ isOpen, onClose }: UserSettingsModalProps) =
                     </div>
                 </div>
             </div>
-        </div>
-    );
+                    </div>
+                    );
 };

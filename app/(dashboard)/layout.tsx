@@ -187,6 +187,7 @@ export default function DashboardLayout({
             <UserSettingsModal
                 isOpen={showSettingsModal}
                 onClose={() => setShowSettingsModal(false)}
+                user={user}
             />
 
             <ExportInstructionsModal
