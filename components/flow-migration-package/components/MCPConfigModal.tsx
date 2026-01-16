@@ -211,13 +211,13 @@ export function MCPConfigModal({ isOpen, onClose, config, onSave }: MCPConfigMod
                 <div className="px-6 py-5 border-b border-gray-100/50 dark:border-white/5 flex items-center justify-between">
                     <div className="flex items-center gap-4">
                         <div className="p-2.5 bg-gray-100 dark:bg-white/5 rounded-xl shadow-inner border border-gray-200 dark:border-white/5">
-                            <FileCode className="w-5 h-5 text-gray-700 dark:text-gray-300" />
+                            <FileCode className="w-5 h-5 text-gray-700 dark:text-gray-200" />
                         </div>
                         <div className="space-y-0.5">
                             <h3 className="text-[17px] font-semibold text-gray-900 dark:text-white tracking-tight">
                                 Server Configuration
                             </h3>
-                            <p className="text-[13px] text-gray-500 dark:text-gray-400 font-medium">
+                            <p className="text-[13px] text-gray-500 dark:text-gray-300 font-medium">
                                 Configure MCP server parameters
                             </p>
                         </div>
@@ -239,7 +239,7 @@ export function MCPConfigModal({ isOpen, onClose, config, onSave }: MCPConfigMod
                         onChange={(e) => {
                             setJsonContent(e.target.value);
                         }}
-                        className="relative z-10 w-full h-full bg-transparent text-gray-600 dark:text-gray-300 font-mono text-[13px] leading-relaxed p-6 resize-none focus:outline-none selection:bg-blue-500/20 selection:text-blue-600 dark:selection:bg-blue-500/30 dark:selection:text-blue-200"
+                        className="relative z-10 w-full h-full bg-transparent text-gray-600 dark:text-gray-100 font-mono text-[13px] leading-relaxed p-6 resize-none focus:outline-none selection:bg-blue-500/20 selection:text-blue-600 dark:selection:bg-blue-500/40 dark:selection:text-white caret-blue-500 dark:caret-white"
                         spellCheck={false}
                         autoFocus
                         placeholder="// Enter your MCP server configuration JSON here..."
@@ -262,8 +262,8 @@ export function MCPConfigModal({ isOpen, onClose, config, onSave }: MCPConfigMod
                                 ${verifyStatus === 'success'
                                     ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400'
                                     : verifyStatus === 'loading'
-                                        ? 'bg-blue-500/10 border-blue-500/20 text-blue-600 dark:text-blue-400'
-                                        : 'bg-white dark:bg-white/5 border-gray-200 dark:border-white/10 text-gray-500 dark:text-gray-400'
+                                        ? 'bg-blue-500/10 border-blue-500/20 text-blue-600 dark:text-blue-300'
+                                        : 'bg-white dark:bg-white/5 border-gray-200 dark:border-white/10 text-gray-500 dark:text-gray-300'
                                 }
                             `}>
                                 {verifyStatus === 'loading' ? (
@@ -281,7 +281,7 @@ export function MCPConfigModal({ isOpen, onClose, config, onSave }: MCPConfigMod
                                 </span>
                             </div>
                         ) : (
-                            <div className="text-[11px] font-medium text-gray-400 px-2">
+                            <div className="text-[11px] font-medium text-gray-400 dark:text-gray-300 px-2">
                                 Waiting for input...
                             </div>
                         )}
@@ -291,7 +291,7 @@ export function MCPConfigModal({ isOpen, onClose, config, onSave }: MCPConfigMod
                     <div className="flex items-center gap-3">
                         <button
                             onClick={onClose}
-                            className="px-5 py-2.5 text-[13px] font-medium text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 rounded-xl transition-all duration-200"
+                            className="px-5 py-2.5 text-[13px] font-medium text-gray-500 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 rounded-xl transition-all duration-200"
                         >
                             Cancel
                         </button>
