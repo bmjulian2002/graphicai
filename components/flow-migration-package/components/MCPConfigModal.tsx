@@ -200,17 +200,17 @@ export function MCPConfigModal({ isOpen, onClose, config, onSave }: MCPConfigMod
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 sm:p-4 animate-in fade-in duration-300">
             {/* Backdrop */}
             <div
-                className="absolute inset-0 bg-gray-900/40 dark:bg-black/60 backdrop-blur-md transition-opacity"
+                className="absolute inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-md transition-opacity"
                 onClick={onClose}
             />
 
             {/* Modal */}
-            <div className="relative w-full max-w-2xl bg-white/90 dark:bg-gray-900/90 backdrop-blur-2xl rounded-[32px] shadow-2xl border border-white/20 dark:border-white/10 overflow-hidden flex flex-col h-[600px] max-h-[90vh] animate-in zoom-in-95 duration-300 ring-1 ring-black/5 dark:ring-white/10">
+            <div className="relative w-full max-w-2xl bg-white/95 dark:bg-[#1c1c1e]/95 backdrop-blur-2xl rounded-2xl shadow-2xl border border-white/20 dark:border-white/10 overflow-hidden flex flex-col h-[600px] max-h-[90vh] animate-in zoom-in-95 duration-300 ring-1 ring-black/5 dark:ring-white/5">
 
                 {/* Header */}
-                <div className="px-6 py-5 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
+                <div className="px-6 py-5 border-b border-gray-100/50 dark:border-white/5 flex items-center justify-between">
                     <div className="flex items-center gap-4">
-                        <div className="p-2.5 bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700 rounded-2xl shadow-inner">
+                        <div className="p-2.5 bg-gray-100 dark:bg-white/5 rounded-xl shadow-inner border border-gray-200 dark:border-white/5">
                             <FileCode className="w-5 h-5 text-gray-700 dark:text-gray-300" />
                         </div>
                         <div className="space-y-0.5">
@@ -225,21 +225,21 @@ export function MCPConfigModal({ isOpen, onClose, config, onSave }: MCPConfigMod
 
                     <button
                         onClick={onClose}
-                        className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800/50 rounded-full transition-all duration-200"
+                        className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/5 rounded-full transition-all duration-200"
                     >
                         <X className="w-5 h-5" />
                     </button>
                 </div>
 
                 {/* Content - Editor */}
-                <div className="flex-1 relative group">
-                    <div className="absolute inset-0 bg-[#0d1117] dark:bg-black group-hover:bg-[#161b22] dark:group-hover:bg-gray-950 transition-colors duration-500" />
+                <div className="flex-1 relative group bg-gray-50/50 dark:bg-black/20">
+                    <div className="absolute inset-0 bg-[#0d1117] dark:bg-black/40 group-hover:bg-[#161b22] dark:group-hover:bg-black/50 transition-colors duration-500" />
                     <textarea
                         value={jsonContent}
                         onChange={(e) => {
                             setJsonContent(e.target.value);
                         }}
-                        className="relative z-10 w-full h-full bg-transparent text-gray-300 font-mono text-[13px] leading-relaxed p-6 resize-none focus:outline-none selection:bg-blue-500/30 selection:text-blue-200"
+                        className="relative z-10 w-full h-full bg-transparent text-gray-600 dark:text-gray-300 font-mono text-[13px] leading-relaxed p-6 resize-none focus:outline-none selection:bg-blue-500/20 selection:text-blue-600 dark:selection:bg-blue-500/30 dark:selection:text-blue-200"
                         spellCheck={false}
                         autoFocus
                         placeholder="// Enter your MCP server configuration JSON here..."
@@ -247,23 +247,23 @@ export function MCPConfigModal({ isOpen, onClose, config, onSave }: MCPConfigMod
                 </div>
 
                 {/* Footer */}
-                <div className="px-6 py-5 border-t border-gray-100/50 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900/50 backdrop-blur-xl flex items-center justify-between gap-4">
+                <div className="px-6 py-5 border-t border-gray-100/50 dark:border-white/5 bg-gray-50/50 dark:bg-[#1c1c1e]/50 backdrop-blur-xl flex items-center justify-between gap-4">
 
                     {/* Status Indicator */}
                     <div className="flex-1 flex items-center">
                         {error ? (
-                            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 animate-in slide-in-from-left-2 fade-in duration-300">
+                            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 animate-in slide-in-from-left-2 fade-in duration-300">
                                 <AlertCircle className="w-3.5 h-3.5" />
                                 <span className="text-[11px] font-medium leading-none pb-px">{error}</span>
                             </div>
                         ) : isValid ? (
                             <div className={`
-                                flex items-center gap-2 px-3.5 py-1.5 rounded-full border shadow-sm transition-all duration-300
+                                flex items-center gap-2 px-3.5 py-1.5 rounded-lg border shadow-sm transition-all duration-300
                                 ${verifyStatus === 'success'
                                     ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400'
                                     : verifyStatus === 'loading'
                                         ? 'bg-blue-500/10 border-blue-500/20 text-blue-600 dark:text-blue-400'
-                                        : 'bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400'
+                                        : 'bg-white dark:bg-white/5 border-gray-200 dark:border-white/10 text-gray-500 dark:text-gray-400'
                                 }
                             `}>
                                 {verifyStatus === 'loading' ? (
@@ -274,10 +274,10 @@ export function MCPConfigModal({ isOpen, onClose, config, onSave }: MCPConfigMod
                                     <Beaker className="w-3.5 h-3.5" />
                                 )}
                                 <span className="text-[11px] font-semibold tracking-wide">
-                                    {verifyStatus === 'loading' ? 'Verifying Package...' :
+                                    {verifyStatus === 'loading' ? 'Verifying...' :
                                         verifyStatus === 'success' ? verifyMsg :
                                             verifyStatus === 'error' ? (verifyMsg || 'Verification Failed') :
-                                                'Ready to Verify'}
+                                                'NPM Package'}
                                 </span>
                             </div>
                         ) : (
@@ -291,7 +291,7 @@ export function MCPConfigModal({ isOpen, onClose, config, onSave }: MCPConfigMod
                     <div className="flex items-center gap-3">
                         <button
                             onClick={onClose}
-                            className="px-5 py-2.5 text-[13px] font-medium text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-all duration-200"
+                            className="px-5 py-2.5 text-[13px] font-medium text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 rounded-xl transition-all duration-200"
                         >
                             Cancel
                         </button>
@@ -299,14 +299,14 @@ export function MCPConfigModal({ isOpen, onClose, config, onSave }: MCPConfigMod
                             onClick={handleSave}
                             disabled={!isValid || verifyStatus !== 'success'}
                             className={`
-                                relative overflow-hidden px-6 py-2.5 rounded-full text-[13px] font-semibold text-white shadow-lg shadow-blue-500/20 transition-all duration-300
-                                bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 active:scale-95
+                                relative overflow-hidden px-6 py-2.5 rounded-xl text-[13px] font-semibold text-white shadow-lg shadow-blue-500/20 transition-all duration-300
+                                bg-gray-900 dark:bg-white dark:text-black hover:opacity-90 active:scale-95
                                 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none disabled:active:scale-100
                             `}
                         >
                             <div className="flex items-center gap-2">
                                 <Save className="w-3.5 h-3.5" />
-                                <span>Save Changes</span>
+                                <span>Save</span>
                             </div>
                         </button>
                     </div>
