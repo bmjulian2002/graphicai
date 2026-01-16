@@ -26,6 +26,7 @@ import { analyzeArchitecture } from './logic/topology-analysis';
 import { PatternLabel } from './components/PatternLabel';
 import { NodeDetailSidebar } from './components/NodeDetailSidepanel';
 import { AnimatedBackground } from './components/AnimatedBackground';
+import { MCPExportModal } from './components/MCPExportModal';
 import { LLMNode, MCPNode, ClientNode, ErrorNode } from './nodes/CustomNodes';
 
 // Interfaces for component props if needed to be controlled from outside
@@ -243,9 +244,13 @@ export default function FlowMigrationPackage({ initialNodes: propNodes, initialE
         edgesRef.current = edges;
     }, [nodes, edges]);
 
-    // Export Flow Handler
+    // MCP Export Handler
+    const [isMCPExportOpen, setIsMCPExportOpen] = useState(false);
+    const [mcpExportContent, setMcpExportContent] = useState('');
+
     useEffect(() => {
         const handleExport = () => {
+            // ... existing export flow logic ...
             const flowData = { nodes: nodesRef.current, edges: edgesRef.current };
             const jsonString = JSON.stringify(flowData, null, 2);
             const blob = new Blob([jsonString], { type: 'application/json' });
@@ -260,6 +265,7 @@ export default function FlowMigrationPackage({ initialNodes: propNodes, initialE
         };
 
         const handleExportZip = async () => {
+            // ... existing zip logic ...
             const zip = new JSZip();
             const workflowFolder = zip.folder("workflow");
 
@@ -351,6 +357,35 @@ ${systemPrompt}
             }
         };
 
+        const handleExportMCP = () => {
+            const mcpNodes = nodesRef.current.filter(n =>
+                n.data.entityType === 'MCP Server' ||
+                n.data.entityType === 'Database'
+            );
+
+            let combinedServers: Record<string, any> = {};
+
+            mcpNodes.forEach(node => {
+                if (node.data.mcpConfig && typeof node.data.mcpConfig === 'string') {
+                    try {
+                        const config = JSON.parse(node.data.mcpConfig);
+                        // Config is expected to be { "serverName": { "command": ... } }
+                        // Merge top-level keys
+                        Object.assign(combinedServers, config);
+                    } catch (e) {
+                        console.error(`Failed to parse MCP config for node ${node.id}`, e);
+                    }
+                }
+            });
+
+            const finalConfig = {
+                mcpServers: combinedServers
+            };
+
+            setMcpExportContent(JSON.stringify(finalConfig, null, 2));
+            setIsMCPExportOpen(true);
+        };
+
         const handleImport = (event: Event) => {
             const customEvent = event as CustomEvent;
             const { nodes: newNodes, edges: newEdges } = customEvent.detail;
@@ -363,11 +398,13 @@ ${systemPrompt}
 
         window.addEventListener('export-flow', handleExport);
         window.addEventListener('export-workbench-zip', handleExportZip);
+        window.addEventListener('request-mcp-export', handleExportMCP);
         window.addEventListener('import-flow', handleImport);
 
         return () => {
             window.removeEventListener('export-flow', handleExport);
             window.removeEventListener('export-workbench-zip', handleExportZip);
+            window.removeEventListener('request-mcp-export', handleExportMCP);
             window.removeEventListener('import-flow', handleImport);
         };
     }, [setNodes, setEdges]); // Stable dependencies only
@@ -635,6 +672,12 @@ ${systemPrompt}
                     models={models}
                 />
             </div>
+
+            <MCPExportModal
+                isOpen={isMCPExportOpen}
+                onClose={() => setIsMCPExportOpen(false)}
+                config={mcpExportContent}
+            />
         </>
     );
 }

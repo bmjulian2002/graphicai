@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter, usePathname } from 'next/navigation';
-import { LogOut, Moon, Sun, ArrowLeft, Download, Settings, Bot, Server, Monitor, Database, Box, FileBox } from 'lucide-react';
+import { LogOut, Moon, Sun, ArrowLeft, Download, Settings, Bot, Server, Monitor, Database, Box, FileBox, FileJson } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { ImportFlowModal } from '@/components/ImportFlowModal';
@@ -260,6 +260,27 @@ export default function DashboardLayout({
                                         </div>
                                         <span className="text-xs font-semibold text-gray-900 dark:text-white mb-0.5">Storage</span>
                                         <span className="text-[9px] text-gray-400 dark:text-gray-500 font-medium">Archivos</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Configuration Files Section */}
+                            <div>
+                                <div className="flex items-center justify-between px-1 mb-3 pt-2">
+                                    <h3 className="text-[13px] font-semibold text-gray-900 dark:text-gray-100 tracking-tight">Archivos de Configuración</h3>
+                                </div>
+                                <div className="grid grid-cols-1 gap-2">
+                                    <button
+                                        onClick={() => window.dispatchEvent(new CustomEvent('request-mcp-export'))}
+                                        className="w-full flex items-center gap-3 px-3 py-2.5 bg-white/50 dark:bg-gray-800/20 border border-gray-200/60 dark:border-gray-700/50 hover:bg-white dark:hover:bg-gray-800 hover:border-blue-200 dark:hover:border-blue-800 rounded-xl transition-all duration-200 group text-left"
+                                    >
+                                        <div className="p-2 rounded-lg bg-blue-100/50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform">
+                                            <FileJson className="w-4 h-4" />
+                                        </div>
+                                        <div>
+                                            <span className="block text-xs font-semibold text-gray-900 dark:text-white">Exportar MCPs</span>
+                                            <span className="block text-[10px] text-gray-400 dark:text-gray-500">JSON para Claude Desktop</span>
+                                        </div>
                                     </button>
                                 </div>
                             </div>
