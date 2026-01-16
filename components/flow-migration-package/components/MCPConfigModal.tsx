@@ -232,14 +232,14 @@ export function MCPConfigModal({ isOpen, onClose, config, onSave }: MCPConfigMod
                 </div>
 
                 {/* Content - Editor */}
-                <div className="flex-1 relative group bg-gray-50/50 dark:bg-black/20">
-                    <div className="absolute inset-0 bg-[#0d1117] dark:bg-black/40 group-hover:bg-[#161b22] dark:group-hover:bg-black/50 transition-colors duration-500" />
+                <div className="flex-1 relative group bg-white dark:bg-black/20">
+                    <div className="absolute inset-0 hidden dark:block bg-[#0d1117] dark:bg-black/40 group-hover:bg-[#161b22] dark:group-hover:bg-black/50 transition-colors duration-500" />
                     <textarea
                         value={jsonContent}
                         onChange={(e) => {
                             setJsonContent(e.target.value);
                         }}
-                        className="relative z-10 w-full h-full bg-transparent text-gray-600 dark:text-gray-100 font-mono text-[13px] leading-relaxed p-6 resize-none focus:outline-none selection:bg-blue-500/20 selection:text-blue-600 dark:selection:bg-blue-500/40 dark:selection:text-white caret-blue-500 dark:caret-white"
+                        className="relative z-10 w-full h-full bg-transparent text-gray-600 dark:text-gray-100 font-mono text-[13px] leading-relaxed p-6 resize-none focus:outline-none selection:bg-blue-500/20 selection:text-blue-600 dark:selection:bg-blue-500/40 dark:selection:text-white caret-blue-600 dark:caret-white"
                         spellCheck={false}
                         autoFocus
                         placeholder="// Enter your MCP server configuration JSON here..."
