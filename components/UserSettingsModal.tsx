@@ -1,132 +1,65 @@
-import React, { useState, useEffect } from 'react';
-import { X, Key, Save, Eye, EyeOff, ShieldCheck, Zap, Cpu, Box, Check } from 'lucide-react';
-import { useApiKeys } from '@/hooks/useApiKeys';
+import { useState, useEffect } from 'react';
+import { X, Save, Eye, EyeOff, Key, User, LogOut, Shield, Info, CreditCard } from 'lucide-react';
+import { createClient } from '@/lib/supabase/client';
+import { useRouter } from 'next/navigation';
 
 interface UserSettingsModalProps {
     isOpen: boolean;
     onClose: () => void;
+    user: any;
 }
 
-type Provider = 'gemini' | 'openai' | 'anthropic';
+export const UserSettingsModal = ({ isOpen, onClose, user }: UserSettingsModalProps) => {
+    const [activeTab, setActiveTab] = useState<'profile' | 'api'>('profile');
+    const [openaiKey, setOpenaiKey] = useState('');
+    const [anthropicKey, setAnthropicKey] = useState('');
+    const [geminiKey, setGeminiKey] = useState('');
+    const [showKeys, setShowKeys] = useState<Record<string, boolean>>({});
+    const [isLoading, setIsLoading] = useState(false);
+    const router = useRouter();
+    const supabase = createClient();
 
-export const UserSettingsModal = ({ isOpen, onClose }: UserSettingsModalProps) => {
-    const { geminiKey, openaiKey, anthropicKey, saveKey } = useApiKeys();
-    const [selectedProvider, setSelectedProvider] = useState<Provider>('gemini');
-
-    // Internal state for inputs to allow editing before saving
-    const [inputs, setInputs] = useState({
-        gemini: '',
-        openai: '',
-        anthropic: ''
-    });
-
-    const [showKey, setShowKey] = useState(false);
-    const [saveStatus, setSaveStatus] = useState<Provider | null>(null);
-    const [isValidating, setIsValidating] = useState(false);
-    const [validationError, setValidationError] = useState<string | null>(null);
-
-    // Sync inputs with stored keys when modal opens or keys load
     useEffect(() => {
-        setInputs({
-            gemini: geminiKey || '',
-            openai: openaiKey || '',
-            anthropic: anthropicKey || ''
-        });
-    }, [geminiKey, openaiKey, anthropicKey, isOpen]);
-
-    const handleSave = async (provider: Provider) => {
-        setValidationError(null);
-        setIsValidating(true);
-        setSaveStatus(null);
-
-        const keyToSave = inputs[provider];
-
-        if (!keyToSave) {
-            setValidationError('La clave no puede estar vacía.');
-            setIsValidating(false);
-            return;
+        if (isOpen) {
+            setOpenaiKey(localStorage.getItem('openai_key') || '');
+            setAnthropicKey(localStorage.getItem('anthropic_key') || '');
+            setGeminiKey(localStorage.getItem('gemini_key') || '');
         }
+    }, [isOpen]);
 
+    const handleSaveKeys = () => {
+        localStorage.setItem('openai_key', openaiKey);
+        localStorage.setItem('anthropic_key', anthropicKey);
+        localStorage.setItem('gemini_key', geminiKey);
+
+        // Dispatch event to notify listeners
+        window.dispatchEvent(new Event('storage'));
+        onClose();
+    };
+
+    const handleLogout = async () => {
         try {
-            // Dynamic import to ensure server action is handled correctly
-            const { validateApiKey } = await import('@/app/actions/validate-key');
-            const result = await validateApiKey(provider, keyToSave);
-
-            if (!result.valid) {
-                setValidationError(result.error || 'La clave API no es válida.');
-                setIsValidating(false);
-                return;
-            }
-
-            // Si es válida, guardar
-            saveKey(provider, keyToSave);
-            setSaveStatus(provider);
-            setTimeout(() => setSaveStatus(null), 2000);
-
-        } catch (err) {
-            console.error(err);
-            setValidationError('Error al intentar validar la clave.');
+            setIsLoading(true);
+            await supabase.auth.signOut();
+            router.push('/login');
+            router.refresh();
+        } catch (error) {
+            console.error('Error signing out:', error);
         } finally {
-            setIsValidating(false);
+            setIsLoading(false);
         }
+    };
+
+    const toggleShowKey = (key: string) => {
+        setShowKeys(prev => ({ ...prev, [key]: !prev[key] }));
     };
 
     if (!isOpen) return null;
 
-    const providers = [
-        {
-            id: 'gemini',
-            name: 'Google Gemini',
-            icon: Zap,
-            color: 'text-yellow-500',
-            desc: 'Recomendado para uso gratuito (Free Tier).'
-        },
-        {
-            id: 'openai',
-            name: 'OpenAI (GPT-4)',
-            icon: Box,
-            color: 'text-green-500',
-            desc: 'Requiere cuenta con créditos activos.'
-        },
-        {
-            id: 'anthropic',
-            name: 'Anthropic (Claude)',
-            icon: Cpu,
-            color: 'text-purple-500',
-            desc: 'Excelente para razonamiento complejo.'
-        }
-    ] as const;
-
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            {/* Backdrop */}
-            <div
-                className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200"
-                onClick={onClose}
-            />
-
-            {/* Modal Content */}
-            <div className="relative w-full max-w-2xl bg-white dark:bg-[#1c1c1e] rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 fade-in duration-300 ring-1 ring-black/5 dark:ring-white/10 flex flex-col md:flex-row min-h-[500px] max-h-[85vh] overflow-y-auto">
-
-                {/* Sidebar Navigation */}
-                <div className="w-full md:w-64 bg-gray-50/50 dark:bg-black/20 border-b md:border-b-0 md:border-r border-gray-100 dark:border-gray-800 p-6 flex flex-col justify-between">
-                    <div>
-                        <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
-                            Configuración
-                        </h2>
-
-                        <div className="space-y-2">
-                            {providers.map((p) => (
-                                <button
-                                    key={p.id}
-                                    onClick={() => {
-                                        setSelectedProvider(p.id);
-                                        setValidationError(null);
-                                        setSaveStatus(null);
-                                    }}
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/20 dark:bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
             <div className="bg-white dark:bg-[#1c1c1e] w-full max-w-md rounded-[24px] shadow-2xl border border-gray-200/50 dark:border-white/10 overflow-hidden flex flex-col max-h-[90vh]">
-                
+
                 {/* Header */}
                 <div className="px-6 py-4 border-b border-gray-100 dark:border-white/5 flex items-center justify-between bg-white/50 dark:bg-white/5 backdrop-blur-xl">
                     <h2 className="text-base font-bold text-gray-900 dark:text-white">Ajustes</h2>
@@ -143,22 +76,20 @@ export const UserSettingsModal = ({ isOpen, onClose }: UserSettingsModalProps) =
                     <div className="flex p-1 bg-gray-100 dark:bg-black/40 rounded-xl">
                         <button
                             onClick={() => setActiveTab('profile')}
-                            className={`flex-1 flex items-center justify-center gap-2 py-2 text-xs font-semibold rounded-lg transition-all duration-200 ${
-                                activeTab === 'profile'
+                            className={`flex-1 flex items-center justify-center gap-2 py-2 text-xs font-semibold rounded-lg transition-all duration-200 ${activeTab === 'profile'
                                     ? 'bg-white dark:bg-[#2c2c2e] text-gray-900 dark:text-white shadow-sm'
                                     : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
-                            }`}
+                                }`}
                         >
                             <User className="w-3.5 h-3.5" />
                             Perfil
                         </button>
                         <button
                             onClick={() => setActiveTab('api')}
-                            className={`flex-1 flex items-center justify-center gap-2 py-2 text-xs font-semibold rounded-lg transition-all duration-200 ${
-                                activeTab === 'api'
+                            className={`flex-1 flex items-center justify-center gap-2 py-2 text-xs font-semibold rounded-lg transition-all duration-200 ${activeTab === 'api'
                                     ? 'bg-white dark:bg-[#2c2c2e] text-gray-900 dark:text-white shadow-sm'
                                     : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
-                            }`}
+                                }`}
                         >
                             <Key className="w-3.5 h-3.5" />
                             API Keys
@@ -225,23 +156,54 @@ export const UserSettingsModal = ({ isOpen, onClose }: UserSettingsModalProps) =
                                     Tus claves se guardan localmente en tu navegador. Nunca se envían a nuestros servidores excepto para hacer peticiones directas a los proveedores.
                                 </p>
                             </div>
-                                    Validando...
-                                </>
-                            ) : saveStatus === selectedProvider ? (
-                                <>
-                                    <Check className="w-4 h-4" />
-                                    Validado y Guardado
-                                </>
-                            ) : (
-                                <>
-                                    <Save className="w-4 h-4" />
-                                    Validar y Guardar
-                                </>
-                            )}
+
+                            {[
+                                { id: 'openai', label: 'OpenAI API Key', value: openaiKey, setter: setOpenaiKey },
+                                { id: 'anthropic', label: 'Anthropic API Key', value: anthropicKey, setter: setAnthropicKey },
+                                { id: 'gemini', label: 'Google Gemini API Key', value: geminiKey, setter: setGeminiKey }
+                            ].map((field) => (
+                                <div key={field.id} className="space-y-2">
+                                    <label className="text-xs font-semibold text-gray-700 dark:text-gray-300 ml-1">
+                                        {field.label}
+                                    </label>
+                                    <div className="relative group">
+                                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                                            <Key className="w-4 h-4" />
+                                        </div>
+                                        <input
+                                            type={showKeys[field.id] ? "text" : "password"}
+                                            value={field.value}
+                                            onChange={(e) => field.setter(e.target.value)}
+                                            className="w-full bg-gray-50 dark:bg-black/20 border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white text-sm rounded-xl pl-10 pr-10 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500/50 transition-all"
+                                            placeholder={`sk-...`}
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => toggleShowKey(field.id)}
+                                            className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
+                                        >
+                                            {showKeys[field.id] ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+
+                {/* Footer */}
+                {activeTab === 'api' && (
+                    <div className="p-5 border-t border-gray-100 dark:border-white/5 bg-gray-50/50 dark:bg-black/20 backdrop-blur-xl">
+                        <button
+                            onClick={handleSaveKeys}
+                            className="w-full flex items-center justify-center gap-2 bg-gray-900 dark:bg-white text-white dark:text-black py-3 rounded-xl text-sm font-bold shadow-lg shadow-black/5 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200"
+                        >
+                            <Save className="w-4 h-4" />
+                            Guardar Cambios
                         </button>
                     </div>
-                </div>
+                )}
             </div>
-                    </div>
-                    );
+        </div>
+    );
 };
