@@ -186,6 +186,8 @@ export default function DashboardLayout({
                 isOpen={showSettingsModal}
                 onClose={() => setShowSettingsModal(false)}
                 user={user}
+                darkMode={darkMode}
+                toggleTheme={toggleDarkMode}
             />
 
             <ExportInstructionsModal
@@ -333,14 +335,7 @@ export default function DashboardLayout({
 
                                 {/* Actions Right */}
                                 <div className="flex items-center gap-1">
-                                    {/* Theme Toggle */}
-                                    <button
-                                        onClick={toggleDarkMode}
-                                        className="p-2 text-gray-500 hover:text-amber-500 dark:text-gray-400 dark:hover:text-yellow-400 hover:bg-white dark:hover:bg-white/10 rounded-lg transition-all duration-200"
-                                        title={darkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
-                                    >
-                                        {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-                                    </button>
+
 
                                     {/* System Menu Dropdown */}
                                     <div className="relative" ref={footerMenuRef}>
