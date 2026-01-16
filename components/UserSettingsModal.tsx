@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
-import { X, Save, Eye, EyeOff, Key, User, LogOut, Shield, Info, CreditCard } from 'lucide-react';
+import { useState } from 'react';
+import { X, Eye, EyeOff, Key, User, LogOut, Shield, Info, Zap, Box, Cpu } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
+import { useApiKeys } from '@/hooks/useApiKeys';
 
 interface UserSettingsModalProps {
     isOpen: boolean;
@@ -11,30 +12,17 @@ interface UserSettingsModalProps {
 
 export const UserSettingsModal = ({ isOpen, onClose, user }: UserSettingsModalProps) => {
     const [activeTab, setActiveTab] = useState<'profile' | 'api'>('profile');
-    const [openaiKey, setOpenaiKey] = useState('');
-    const [anthropicKey, setAnthropicKey] = useState('');
-    const [geminiKey, setGeminiKey] = useState('');
     const [showKeys, setShowKeys] = useState<Record<string, boolean>>({});
     const [isLoading, setIsLoading] = useState(false);
+
     const router = useRouter();
     const supabase = createClient();
+    const { geminiKey, openaiKey, anthropicKey } = useApiKeys();
 
-    useEffect(() => {
-        if (isOpen) {
-            setOpenaiKey(localStorage.getItem('openai_key') || '');
-            setAnthropicKey(localStorage.getItem('anthropic_key') || '');
-            setGeminiKey(localStorage.getItem('gemini_key') || '');
-        }
-    }, [isOpen]);
-
-    const handleSaveKeys = () => {
-        localStorage.setItem('openai_key', openaiKey);
-        localStorage.setItem('anthropic_key', anthropicKey);
-        localStorage.setItem('gemini_key', geminiKey);
-
-        // Dispatch event to notify listeners
-        window.dispatchEvent(new Event('storage'));
-        onClose();
+    const keys = {
+        gemini: geminiKey,
+        openai: openaiKey,
+        anthropic: anthropicKey
     };
 
     const handleLogout = async () => {
@@ -55,6 +43,32 @@ export const UserSettingsModal = ({ isOpen, onClose, user }: UserSettingsModalPr
     };
 
     if (!isOpen) return null;
+
+    const providers = [
+        {
+            id: 'gemini',
+            name: 'Google Gemini',
+            icon: Zap,
+            color: 'text-yellow-500',
+            bgColor: 'bg-yellow-100 dark:bg-yellow-900/30'
+        },
+        {
+            id: 'openai',
+            name: 'OpenAI',
+            icon: Box,
+            color: 'text-green-500',
+            bgColor: 'bg-green-100 dark:bg-green-900/30'
+        },
+        {
+            id: 'anthropic',
+            name: 'Anthropic',
+            icon: Cpu,
+            color: 'text-purple-500',
+            bgColor: 'bg-purple-100 dark:bg-purple-900/30'
+        }
+    ];
+
+    const configuredProviders = providers.filter(p => !!keys[p.id as keyof typeof keys]);
 
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/20 dark:bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
@@ -77,8 +91,8 @@ export const UserSettingsModal = ({ isOpen, onClose, user }: UserSettingsModalPr
                         <button
                             onClick={() => setActiveTab('profile')}
                             className={`flex-1 flex items-center justify-center gap-2 py-2 text-xs font-semibold rounded-lg transition-all duration-200 ${activeTab === 'profile'
-                                    ? 'bg-white dark:bg-[#2c2c2e] text-gray-900 dark:text-white shadow-sm'
-                                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                                ? 'bg-white dark:bg-[#2c2c2e] text-gray-900 dark:text-white shadow-sm'
+                                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
                                 }`}
                         >
                             <User className="w-3.5 h-3.5" />
@@ -87,8 +101,8 @@ export const UserSettingsModal = ({ isOpen, onClose, user }: UserSettingsModalPr
                         <button
                             onClick={() => setActiveTab('api')}
                             className={`flex-1 flex items-center justify-center gap-2 py-2 text-xs font-semibold rounded-lg transition-all duration-200 ${activeTab === 'api'
-                                    ? 'bg-white dark:bg-[#2c2c2e] text-gray-900 dark:text-white shadow-sm'
-                                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                                ? 'bg-white dark:bg-[#2c2c2e] text-gray-900 dark:text-white shadow-sm'
+                                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
                                 }`}
                         >
                             <Key className="w-3.5 h-3.5" />
@@ -150,59 +164,60 @@ export const UserSettingsModal = ({ isOpen, onClose, user }: UserSettingsModalPr
                             <div className="bg-blue-50 dark:bg-blue-900/10 p-4 rounded-xl border border-blue-100 dark:border-blue-900/20">
                                 <h4 className="flex items-center gap-2 text-xs font-bold text-blue-700 dark:text-blue-400 uppercase tracking-wide mb-1">
                                     <Shield className="w-3.5 h-3.5" />
-                                    Almacenamiento Seguro
+                                    Visualización de Llaves
                                 </h4>
                                 <p className="text-xs text-blue-600/80 dark:text-blue-400/70 leading-relaxed">
-                                    Tus claves se guardan localmente en tu navegador. Nunca se envían a nuestros servidores excepto para hacer peticiones directas a los proveedores.
+                                    Estas son las llaves API configuradas actualmente en tu entorno local.
                                 </p>
                             </div>
 
-                            {[
-                                { id: 'openai', label: 'OpenAI API Key', value: openaiKey, setter: setOpenaiKey },
-                                { id: 'anthropic', label: 'Anthropic API Key', value: anthropicKey, setter: setAnthropicKey },
-                                { id: 'gemini', label: 'Google Gemini API Key', value: geminiKey, setter: setGeminiKey }
-                            ].map((field) => (
-                                <div key={field.id} className="space-y-2">
-                                    <label className="text-xs font-semibold text-gray-700 dark:text-gray-300 ml-1">
-                                        {field.label}
-                                    </label>
-                                    <div className="relative group">
-                                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
-                                            <Key className="w-4 h-4" />
+                            {/* List of Configured Keys Only */}
+                            <div className="space-y-3">
+                                {configuredProviders.length > 0 ? (
+                                    configuredProviders.map((provider) => (
+                                        <div key={provider.id} className="group relative overflow-hidden bg-gray-50 dark:bg-black/20 border border-gray-100 dark:border-white/5 rounded-xl p-3 flex items-center gap-3 transition-all hover:bg-gray-100 dark:hover:bg-white/5">
+                                            <div className={`p-2 rounded-lg ${provider.bgColor} ${provider.color}`}>
+                                                <provider.icon className="w-4 h-4" />
+                                            </div>
+
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-center justify-between mb-0.5">
+                                                    <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                                                        {provider.name}
+                                                    </span>
+                                                    <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/30 px-1.5 py-0.5 rounded-md">
+                                                        Activo
+                                                    </span>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <code className="text-xs font-mono text-gray-500 dark:text-gray-400 truncate max-w-[150px]">
+                                                        {showKeys[provider.id] ? keys[provider.id as keyof typeof keys] : '••••••••••••••••'}
+                                                    </code>
+                                                    <button
+                                                        onClick={() => toggleShowKey(provider.id)}
+                                                        className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
+                                                    >
+                                                        {showKeys[provider.id] ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                                                    </button>
+                                                </div>
+                                            </div>
                                         </div>
-                                        <input
-                                            type={showKeys[field.id] ? "text" : "password"}
-                                            value={field.value}
-                                            onChange={(e) => field.setter(e.target.value)}
-                                            className="w-full bg-gray-50 dark:bg-black/20 border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white text-sm rounded-xl pl-10 pr-10 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500/50 transition-all"
-                                            placeholder={`sk-...`}
-                                        />
-                                        <button
-                                            type="button"
-                                            onClick={() => toggleShowKey(field.id)}
-                                            className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
-                                        >
-                                            {showKeys[field.id] ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                                        </button>
+                                    ))
+                                ) : (
+                                    <div className="flex flex-col items-center justify-center py-10 text-center">
+                                        <div className="w-12 h-12 rounded-full bg-gray-100 dark:bg-white/5 flex items-center justify-center mb-3">
+                                            <Key className="w-6 h-6 text-gray-300 dark:text-gray-600" />
+                                        </div>
+                                        <p className="text-sm font-medium text-gray-900 dark:text-white">No hay llaves configuradas</p>
+                                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 max-w-[200px]">
+                                            No se han detectado API Keys guardadas en este dispositivo.
+                                        </p>
                                     </div>
-                                </div>
-                            ))}
+                                )}
+                            </div>
                         </div>
                     )}
                 </div>
-
-                {/* Footer */}
-                {activeTab === 'api' && (
-                    <div className="p-5 border-t border-gray-100 dark:border-white/5 bg-gray-50/50 dark:bg-black/20 backdrop-blur-xl">
-                        <button
-                            onClick={handleSaveKeys}
-                            className="w-full flex items-center justify-center gap-2 bg-gray-900 dark:bg-white text-white dark:text-black py-3 rounded-xl text-sm font-bold shadow-lg shadow-black/5 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200"
-                        >
-                            <Save className="w-4 h-4" />
-                            Guardar Cambios
-                        </button>
-                    </div>
-                )}
             </div>
         </div>
     );
