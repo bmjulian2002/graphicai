@@ -205,6 +205,7 @@ export const NodeDetailSidebar = ({
     const ModelDropdown = () => {
         const currentModel = (node.data.modelId as string) || '';
         const [isOpen, setIsOpen] = useState(false);
+        const [filterVerified, setFilterVerified] = useState(false);
         const dropdownRef = useRef<HTMLDivElement>(null);
 
         useEffect(() => {
@@ -217,6 +218,21 @@ export const NodeDetailSidebar = ({
             return () => document.removeEventListener('mousedown', handleClickOutside);
         }, []);
 
+        const filteredModels = useMemo(() => {
+            if (!filterVerified) return models;
+            return models.filter(m => {
+                const id = m.id.toLowerCase();
+                const provider = m.provider?.toLowerCase() || id.split('/')[0];
+
+                if (provider.includes('openai') || id.includes('gpt')) return !!openaiKey;
+                if (provider.includes('anthropic') || id.includes('claude')) return !!anthropicKey;
+                if (provider.includes('google') || provider.includes('gemini')) return !!geminiKey;
+                // If we implemented other providers via MCP/UseApiKeys, check them here.
+                // For now, filter out unknown if verified only is requested
+                return false;
+            });
+        }, [models, filterVerified, openaiKey, anthropicKey, geminiKey]);
+
         const selectedModelData = models.find(m => m.id === currentModel);
         const displayLabel = selectedModelData
             ? (selectedModelData.name || selectedModelData.id.split('/').pop())
@@ -227,7 +243,7 @@ export const NodeDetailSidebar = ({
             const currentCost = parseFloat(selectedModelData.pricing.prompt) || 0;
             if (currentCost < 5) return null;
             const provider = selectedModelData.id.split('/')[0];
-            const alternatives = models.filter(m => {
+            const alternatives = filteredModels.filter(m => {
                 const cost = parseFloat(m.pricing?.prompt) || 0;
                 return cost > 0 && cost < (currentCost * 0.5);
             });
@@ -239,19 +255,19 @@ export const NodeDetailSidebar = ({
                 m.id.includes('gpt-3.5-turbo')
             );
             return popularEfficient || null;
-        }, [selectedModelData, models]);
+        }, [selectedModelData, filteredModels]);
 
         const suggestion = findCheaperAlternative;
 
         const groupedModels = useMemo(() => {
             const groups: Record<string, any[]> = {};
-            models.slice(0, 100).forEach((m: any) => {
+            filteredModels.slice(0, 100).forEach((m: any) => {
                 const provider = m.id.split('/')[0] || 'other';
                 if (!groups[provider]) groups[provider] = [];
                 groups[provider].push(m);
             });
             return groups;
-        }, [models]);
+        }, [filteredModels]);
 
         return (
             <div className="mb-6 relative" ref={dropdownRef}>
@@ -259,12 +275,38 @@ export const NodeDetailSidebar = ({
                     <label className="text-[13px] font-medium text-gray-500 dark:text-gray-400">
                         AI Model
                     </label>
-                    {!isOpen && suggestion && (
-                        <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-100/50 dark:bg-emerald-900/30 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 ring-1 ring-emerald-500/20">
-                            <Zap className="w-3 h-3 fill-current" />
-                            Smart Pick
+
+                    <div className="flex items-center gap-3">
+                        {/* Smart Pick Badge */}
+                        {!isOpen && suggestion && (
+                            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-100/50 dark:bg-emerald-900/30 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 ring-1 ring-emerald-500/20">
+                                <Zap className="w-3 h-3 fill-current" />
+                                Smart Pick
+                            </div>
+                        )}
+
+                        {/* Verified Filter Toggle */}
+                        <div className="flex items-center gap-2">
+                            <span className={`text-[10px] font-medium transition-colors ${filterVerified ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-400'}`}>
+                                Verified Only
+                            </span>
+                            <button
+                                onClick={() => setFilterVerified(!filterVerified)}
+                                className={`
+                                    relative inline-flex h-4 w-7 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none
+                                    ${filterVerified ? 'bg-emerald-500' : 'bg-gray-200 dark:bg-gray-700'}
+                                `}
+                            >
+                                <span
+                                    aria-hidden="true"
+                                    className={`
+                                        pointer-events-none inline-block h-3 w-3 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out
+                                        ${filterVerified ? 'translate-x-3' : 'translate-x-0'}
+                                    `}
+                                />
+                            </button>
                         </div>
-                    )}
+                    </div>
                 </div>
 
                 <div className="relative">
@@ -344,6 +386,12 @@ export const NodeDetailSidebar = ({
                                     </div>
                                 </div>
                             ))}
+
+                            {Object.keys(groupedModels).length === 0 && (
+                                <div className="p-4 text-center text-xs text-gray-400">
+                                    No models found with active API keys.
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>
