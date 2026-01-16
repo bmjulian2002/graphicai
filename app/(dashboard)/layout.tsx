@@ -39,8 +39,18 @@ export default function DashboardLayout({
     }, []);
 
     useEffect(() => {
-        const isDark = document.documentElement.classList.contains('dark');
-        setDarkMode(isDark);
+        // Initialize theme from localStorage or system preference
+        const storedTheme = localStorage.getItem('theme');
+        const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+        const shouldBeDark = storedTheme === 'dark' || (!storedTheme && systemDark);
+        setDarkMode(shouldBeDark);
+
+        if (shouldBeDark) {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
 
         // Get current user
         const getUser = async () => {
@@ -51,8 +61,17 @@ export default function DashboardLayout({
     }, [supabase]);
 
     const toggleDarkMode = () => {
-        document.documentElement.classList.toggle('dark');
-        setDarkMode(!darkMode);
+        setDarkMode((prev) => {
+            const newMode = !prev;
+            if (newMode) {
+                document.documentElement.classList.add('dark');
+                localStorage.setItem('theme', 'dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+                localStorage.setItem('theme', 'light');
+            }
+            return newMode;
+        });
     };
 
     const handleLogout = async () => {
@@ -337,7 +356,7 @@ export default function DashboardLayout({
                                 <div className="flex items-center gap-1">
                                     {/* Theme Toggle */}
                                     <button
-                                        onClick={() => setDarkMode(!darkMode)}
+                                        onClick={toggleDarkMode}
                                         className="p-2 text-gray-500 hover:text-amber-500 dark:text-gray-400 dark:hover:text-yellow-400 hover:bg-white dark:hover:bg-white/10 rounded-lg transition-all duration-200"
                                         title={darkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
                                     >
