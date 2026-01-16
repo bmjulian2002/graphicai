@@ -20,8 +20,23 @@ export default function DashboardLayout({
     const [showImportModal, setShowImportModal] = useState(false);
     const [showSettingsModal, setShowSettingsModal] = useState(false);
     const [showExportModal, setShowExportModal] = useState(false);
+    const [showFooterMenu, setShowFooterMenu] = useState(false);
     const [user, setUser] = useState<any>(null);
     const supabase = createClient();
+    const footerMenuRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (footerMenuRef.current && !footerMenuRef.current.contains(event.target as Node)) {
+                setShowFooterMenu(false);
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, []);
 
     useEffect(() => {
         const isDark = document.documentElement.classList.contains('dark');
@@ -329,45 +344,59 @@ export default function DashboardLayout({
                                     </button>
 
                                     {/* System Menu Dropdown */}
-                                    <div className="relative group">
-                                        <button className="p-2 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-white dark:hover:bg-white/10 rounded-lg transition-all duration-200">
+                                    <div className="relative" ref={footerMenuRef}>
+                                        <button
+                                            onClick={() => setShowFooterMenu(!showFooterMenu)}
+                                            className={`p-2 transition-all duration-200 rounded-lg ${showFooterMenu ? 'bg-white dark:bg-white/10 text-gray-900 dark:text-white' : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-white dark:hover:bg-white/10'}`}
+                                        >
                                             <MoreVertical className="w-4 h-4" />
                                         </button>
 
                                         {/* Dropdown Content - Popover Upwards */}
-                                        <div className="absolute bottom-full right-0 mb-3 w-60 bg-white/90 dark:bg-[#1c1c1e]/90 backdrop-blur-xl rounded-2xl shadow-2xl border border-gray-200/60 dark:border-white/10 overflow-hidden hidden group-hover:block hover:block animate-in slide-in-from-bottom-2 fade-in duration-200 p-1.5 z-50">
-                                            <div className="px-2 py-1.5 border-b border-gray-100 dark:border-white/5 mb-1">
-                                                <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Acciones del Sistema</span>
-                                            </div>
+                                        {showFooterMenu && (
+                                            <div className="absolute bottom-full right-0 mb-3 w-60 bg-white/90 dark:bg-[#1c1c1e]/90 backdrop-blur-xl rounded-2xl shadow-2xl border border-gray-200/60 dark:border-white/10 overflow-hidden animate-in slide-in-from-bottom-2 fade-in duration-200 p-1.5 z-50">
+                                                <div className="px-2 py-1.5 border-b border-gray-100 dark:border-white/5 mb-1">
+                                                    <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Acciones del Sistema</span>
+                                                </div>
 
-                                            <button
-                                                onClick={() => window.dispatchEvent(new CustomEvent('export-workbench-zip'))}
-                                                className="w-full flex items-center gap-3 px-3 py-2.5 text-xs font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10 rounded-xl transition-colors"
-                                            >
-                                                <div className="p-1.5 bg-rose-100 dark:bg-rose-900/30 text-rose-600 rounded-lg">
-                                                    <FileBox className="w-3.5 h-3.5" />
-                                                </div>
-                                                <span>Exportar Workbench</span>
-                                            </button>
-                                            <button
-                                                onClick={() => window.dispatchEvent(new CustomEvent('export-flow'))}
-                                                className="w-full flex items-center gap-3 px-3 py-2.5 text-xs font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10 rounded-xl transition-colors"
-                                            >
-                                                <div className="p-1.5 bg-blue-100 dark:bg-blue-900/30 text-blue-600 rounded-lg">
-                                                    <Download className="w-3.5 h-3.5" />
-                                                </div>
-                                                <span>Exportar Config</span>
-                                            </button>
-                                            <button
-                                                onClick={() => setShowImportModal(true)}
-                                                className="w-full flex items-center gap-3 px-3 py-2.5 text-xs font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10 rounded-xl transition-colors"
-                                            >
-                                                <div className="p-1.5 bg-purple-100 dark:bg-purple-900/30 text-purple-600 rounded-lg">
-                                                    <Upload className="w-3.5 h-3.5" />
-                                                </div>
-                                                <span>Importar Flujo</span>
-                                            </button>
-                                        </div>
+                                                <button
+                                                    onClick={() => {
+                                                        window.dispatchEvent(new CustomEvent('export-workbench-zip'));
+                                                        setShowFooterMenu(false);
+                                                    }}
+                                                    className="w-full flex items-center gap-3 px-3 py-2.5 text-xs font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10 rounded-xl transition-colors"
+                                                >
+                                                    <div className="p-1.5 bg-rose-100 dark:bg-rose-900/30 text-rose-600 rounded-lg">
+                                                        <FileBox className="w-3.5 h-3.5" />
+                                                    </div>
+                                                    <span>Exportar Workbench</span>
+                                                </button>
+                                                <button
+                                                    onClick={() => {
+                                                        window.dispatchEvent(new CustomEvent('export-flow'));
+                                                        setShowFooterMenu(false);
+                                                    }}
+                                                    className="w-full flex items-center gap-3 px-3 py-2.5 text-xs font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10 rounded-xl transition-colors"
+                                                >
+                                                    <div className="p-1.5 bg-blue-100 dark:bg-blue-900/30 text-blue-600 rounded-lg">
+                                                        <Download className="w-3.5 h-3.5" />
+                                                    </div>
+                                                    <span>Exportar Config</span>
+                                                </button>
+                                                <button
+                                                    onClick={() => {
+                                                        setShowImportModal(true);
+                                                        setShowFooterMenu(false);
+                                                    }}
+                                                    className="w-full flex items-center gap-3 px-3 py-2.5 text-xs font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10 rounded-xl transition-colors"
+                                                >
+                                                    <div className="p-1.5 bg-purple-100 dark:bg-purple-900/30 text-purple-600 rounded-lg">
+                                                        <Upload className="w-3.5 h-3.5" />
+                                                    </div>
+                                                    <span>Importar Flujo</span>
+                                                </button>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             </div>
