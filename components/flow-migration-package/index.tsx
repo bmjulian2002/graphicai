@@ -456,6 +456,7 @@ ${systemPrompt}
         window.addEventListener('request-mcp-export', handleExportMCP);
         window.addEventListener('import-flow', handleImport);
         window.addEventListener('import-mcp-config', handleImportMCPConfig);
+        window.addEventListener('open-mcp-import-modal', () => setIsMCPImportModalOpen(true));
 
         return () => {
             window.removeEventListener('export-flow', handleExport);
@@ -463,6 +464,7 @@ ${systemPrompt}
             window.removeEventListener('request-mcp-export', handleExportMCP);
             window.removeEventListener('import-flow', handleImport);
             window.removeEventListener('import-mcp-config', handleImportMCPConfig);
+            window.removeEventListener('open-mcp-import-modal', () => setIsMCPImportModalOpen(true));
         };
     }, [setNodes, setEdges]); // Stable dependencies only
 
@@ -734,6 +736,15 @@ ${systemPrompt}
                 isOpen={isMCPExportOpen}
                 onClose={() => setIsMCPExportOpen(false)}
                 config={mcpExportContent}
+            />
+
+            <MCPImportModal
+                isOpen={isMCPImportModalOpen}
+                onClose={() => setIsMCPImportModalOpen(false)}
+                onImport={(json) => {
+                    window.dispatchEvent(new CustomEvent('import-mcp-config', { detail: json }));
+                    setIsMCPImportModalOpen(false);
+                }}
             />
         </>
     );
