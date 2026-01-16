@@ -21,32 +21,7 @@ export default function DashboardLayout({
     const [showSettingsModal, setShowSettingsModal] = useState(false);
     const [showExportModal, setShowExportModal] = useState(false);
     const [user, setUser] = useState<any>(null);
-    const mcpImportRef = useRef<HTMLInputElement>(null);
     const supabase = createClient();
-
-    const handleMCPImport = (event: React.ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0];
-        if (!file) return;
-
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            try {
-                const json = JSON.parse(e.target?.result as string);
-                if (!json.mcpServers) {
-                    alert('Formato inválido: Falta la clave "mcpServers".');
-                    return;
-                }
-                window.dispatchEvent(new CustomEvent('import-mcp-config', { detail: json }));
-                // Optional: Show success toast/notification
-            } catch (error) {
-                console.error('JSON Parse Error:', error);
-                alert('Error al leer el archivo JSON.');
-            }
-        };
-        reader.readAsText(file);
-        // Reset the input so the same file can be selected again if needed
-        event.target.value = '';
-    };
 
     useEffect(() => {
         const isDark = document.documentElement.classList.contains('dark');
@@ -295,17 +270,9 @@ export default function DashboardLayout({
                                     <h3 className="text-[13px] font-semibold text-gray-900 dark:text-gray-100 tracking-tight">Archivos de Configuración</h3>
                                 </div>
 
-                                <input
-                                    type="file"
-                                    ref={mcpImportRef}
-                                    className="hidden"
-                                    accept=".json"
-                                    onChange={handleMCPImport}
-                                />
-
                                 <div className="grid grid-cols-2 gap-2">
                                     <button
-                                        onClick={() => mcpImportRef.current?.click()}
+                                        onClick={() => window.dispatchEvent(new CustomEvent('open-mcp-import-modal'))}
                                         className="relative flex flex-col items-center justify-center p-2.5 rounded-xl border border-gray-200/60 dark:border-gray-700/50 bg-white/50 dark:bg-gray-800/20 hover:bg-white dark:hover:bg-gray-800 hover:border-blue-200 dark:hover:border-blue-800 transition-all duration-200 group text-center"
                                     >
                                         <div className="mb-1.5 p-1.5 rounded-lg bg-blue-100/50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform">

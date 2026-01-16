@@ -27,6 +27,7 @@ import { PatternLabel } from './components/PatternLabel';
 import { NodeDetailSidebar } from './components/NodeDetailSidepanel';
 import { AnimatedBackground } from './components/AnimatedBackground';
 import { MCPExportModal } from './components/MCPExportModal';
+import { MCPImportModal } from './components/MCPImportModal';
 import { LLMNode, MCPNode, ClientNode, ErrorNode } from './nodes/CustomNodes';
 
 // Interfaces for component props if needed to be controlled from outside
@@ -244,8 +245,8 @@ export default function FlowMigrationPackage({ initialNodes: propNodes, initialE
         edgesRef.current = edges;
     }, [nodes, edges]);
 
-    // MCP Export Handler
     const [isMCPExportOpen, setIsMCPExportOpen] = useState(false);
+    const [isMCPImportModalOpen, setIsMCPImportModalOpen] = useState(false);
     const [mcpExportContent, setMcpExportContent] = useState('');
 
     useEffect(() => {
