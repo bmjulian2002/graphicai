@@ -396,16 +396,72 @@ ${systemPrompt}
             }
         };
 
+        const handleImportMCPConfig = (event: Event) => {
+            const customEvent = event as CustomEvent;
+            const config = customEvent.detail;
+
+            if (!config || !config.mcpServers) {
+                alert("Archivo de configuración inválido. Debe contener la clave 'mcpServers'.");
+                return;
+            }
+
+            const newNodes: Node[] = [];
+            let xOffset = 50;
+            let yOffset = 50;
+
+            Object.entries(config.mcpServers).forEach(([name, serverConfig]) => {
+                // Construct the node data
+                // We wrap it in a structure that matches what the Export expects: { "serverName": { ... } }
+                const individualConfig = { [name]: serverConfig };
+
+                const nodeData = {
+                    ...getDefaultDataForEntity('MCP Server'),
+                    label: name,
+                    shortName: name,
+                    mcpConfig: JSON.stringify(individualConfig, null, 2)
+                };
+
+                const newNode: Node = {
+                    id: `mcp-${name}-${Date.now()}`,
+                    type: 'mcpNode',
+                    position: { x: 500 + xOffset, y: 300 + yOffset },
+                    data: nodeData
+                };
+
+                newNodes.push(newNode);
+
+                // Simple grid layout logic
+                yOffset += 120;
+                if (yOffset > 400) {
+                    yOffset = 50;
+                    xOffset += 250;
+                }
+            });
+
+            setNodes((prev) => [...prev, ...newNodes]);
+
+            // Dispatch success event for UI feedback if needed, using generic alert for now
+            // alert(`✅ Se importaron ${newNodes.length} servidores MCP correctamente.`);
+            window.dispatchEvent(new CustomEvent('notification', {
+                detail: {
+                    message: `Se importaron ${newNodes.length} servidores MCP`,
+                    type: 'success'
+                }
+            }));
+        };
+
         window.addEventListener('export-flow', handleExport);
         window.addEventListener('export-workbench-zip', handleExportZip);
         window.addEventListener('request-mcp-export', handleExportMCP);
         window.addEventListener('import-flow', handleImport);
+        window.addEventListener('import-mcp-config', handleImportMCPConfig);
 
         return () => {
             window.removeEventListener('export-flow', handleExport);
             window.removeEventListener('export-workbench-zip', handleExportZip);
             window.removeEventListener('request-mcp-export', handleExportMCP);
             window.removeEventListener('import-flow', handleImport);
+            window.removeEventListener('import-mcp-config', handleImportMCPConfig);
         };
     }, [setNodes, setEdges]); // Stable dependencies only
 
