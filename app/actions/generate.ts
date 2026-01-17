@@ -32,13 +32,17 @@ export async function generateAIResponse({
     }
 
     try {
+        // Sanitize modelId (remove provider prefix if present, e.g. "google/gemini-1.5-flash" -> "gemini-1.5-flash")
+        // This assumes standard model IDs don't contain slashes themselves, or that we consistently use "provider/model" format.
+        const cleanModelId = modelId.includes('/') ? modelId.split('/').pop()! : modelId;
+
         switch (provider) {
             case 'gemini':
-                return await generateGemini(apiKey, modelId, systemPrompt, userPrompt);
+                return await generateGemini(apiKey, cleanModelId, systemPrompt, userPrompt);
             case 'openai':
-                return await generateOpenAI(apiKey, modelId, systemPrompt, userPrompt);
+                return await generateOpenAI(apiKey, cleanModelId, systemPrompt, userPrompt);
             case 'anthropic':
-                return await generateAnthropic(apiKey, modelId, systemPrompt, userPrompt);
+                return await generateAnthropic(apiKey, cleanModelId, systemPrompt, userPrompt);
             default:
                 return { content: '', error: 'Unsupported provider.' };
         }
@@ -49,15 +53,13 @@ export async function generateAIResponse({
 }
 
 async function generateGemini(apiKey: string, modelId: string, systemPrompt: string, userPrompt: string): Promise<GenerateResponse> {
-    // Gemini 1.5 format
-    // Map model ID if necessary, but assuming modelId passed is valid like 'gemini-1.5-flash'
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent?key=${apiKey}`;
 
     const body = {
         contents: [
             {
                 role: 'user',
-                parts: [{ text: `System: ${systemPrompt}\n\nUser: ${userPrompt}` }] // Gemini doesn't always have strict system role in all versions via REST easily, mixing is safe
+                parts: [{ text: `System: ${systemPrompt}\n\nUser: ${userPrompt}` }]
             }
         ],
         generationConfig: {
@@ -71,24 +73,25 @@ async function generateGemini(apiKey: string, modelId: string, systemPrompt: str
         body: JSON.stringify(body)
     });
 
-    const data = await response.json();
+    const text = await response.text();
+    let data;
+
+    try {
+        data = JSON.parse(text);
+    } catch (e) {
+        throw new Error(`Gemini API returned invalid JSON: ${text.slice(0, 200)}...`);
+    }
 
     if (!response.ok) {
-        throw new Error(data.error?.message || 'Gemini API Error');
+        throw new Error(data.error?.message || `Gemini API Error: ${response.status} ${response.statusText}`);
     }
 
     const content = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
 
-    // Estimate tokens roughly if not provided
     const usage = {
-        promptTokens: 0,
-        completionTokens: 0
+        promptTokens: data.usageMetadata?.promptTokenCount || 0,
+        completionTokens: data.usageMetadata?.candidatesTokenCount || 0
     };
-
-    if (data.usageMetadata) {
-        usage.promptTokens = data.usageMetadata.promptTokenCount;
-        usage.completionTokens = data.usageMetadata.candidatesTokenCount;
-    }
 
     return { content, usage };
 }
@@ -101,7 +104,7 @@ async function generateOpenAI(apiKey: string, modelId: string, systemPrompt: str
             'Authorization': `Bearer ${apiKey}`
         },
         body: JSON.stringify({
-            model: modelId, // e.g., 'gpt-4o'
+            model: modelId,
             messages: [
                 { role: 'system', content: systemPrompt },
                 { role: 'user', content: userPrompt }
@@ -110,10 +113,17 @@ async function generateOpenAI(apiKey: string, modelId: string, systemPrompt: str
         })
     });
 
-    const data = await response.json();
+    const text = await response.text();
+    let data;
+
+    try {
+        data = JSON.parse(text);
+    } catch (e) {
+        throw new Error(`OpenAI API returned invalid JSON: ${text.slice(0, 200)}...`);
+    }
 
     if (!response.ok) {
-        throw new Error(data.error?.message || 'OpenAI API Error');
+        throw new Error(data.error?.message || `OpenAI API Error: ${response.status} ${response.statusText}`);
     }
 
     return {
@@ -134,7 +144,7 @@ async function generateAnthropic(apiKey: string, modelId: string, systemPrompt: 
             'anthropic-version': '2023-06-01'
         },
         body: JSON.stringify({
-            model: modelId, // e.g., 'claude-3-opus-20240229'
+            model: modelId,
             system: systemPrompt,
             messages: [
                 { role: 'user', content: userPrompt }
@@ -144,10 +154,17 @@ async function generateAnthropic(apiKey: string, modelId: string, systemPrompt: 
         })
     });
 
-    const data = await response.json();
+    const text = await response.text();
+    let data;
+
+    try {
+        data = JSON.parse(text);
+    } catch (e) {
+        throw new Error(`Anthropic API returned invalid JSON: ${text.slice(0, 200)}...`);
+    }
 
     if (!response.ok) {
-        throw new Error(data.error?.message || 'Anthropic API Error');
+        throw new Error(data.error?.message || `Anthropic API Error: ${response.status} ${response.statusText}`);
     }
 
     return {

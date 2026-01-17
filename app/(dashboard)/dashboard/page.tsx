@@ -18,6 +18,7 @@ export default function DashboardPage() {
     const [loading, setLoading] = useState(true);
     const [creating, setCreating] = useState(false);
     const [showCreateModal, setShowCreateModal] = useState(false);
+    const [flowToDelete, setFlowToDelete] = useState<string | null>(null);
     const [newFlowName, setNewFlowName] = useState('');
     const [newFlowDescription, setNewFlowDescription] = useState('');
 
@@ -62,12 +63,17 @@ export default function DashboardPage() {
         }
     };
 
-    const deleteFlow = async (id: string) => {
-        if (!confirm('¿Estás seguro de que quieres eliminar este flujo?')) return;
+    const deleteFlow = (id: string) => {
+        setFlowToDelete(id);
+    };
+
+    const confirmDelete = async () => {
+        if (!flowToDelete) return;
 
         try {
-            await fetch(`/api/flows/${id}`, { method: 'DELETE' });
-            setFlows(flows.filter((f) => f.id !== id));
+            await fetch(`/api/flows/${flowToDelete}`, { method: 'DELETE' });
+            setFlows(flows.filter((f) => f.id !== flowToDelete));
+            setFlowToDelete(null);
         } catch (error) {
             console.error('Error deleting flow:', error);
         }
@@ -150,7 +156,7 @@ export default function DashboardPage() {
                             style={{ animationDelay: `${index * 50}ms` }}
                         >
                             {/* Decorative Gradient Blob */}
-                            <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-blue-500/5 to-purple-500/5 rounded-bl-full -mr-8 -mt-8 transition-transform group-hover:scale-150 duration-700" />
+                            <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-blue-500/5 to-purple-500/5 rounded-bl-full -mr-8 -mt-8 transition-transform group-hover:scale-150 duration-700 pointer-events-none" />
 
                             <div>
                                 <div className="flex items-start justify-between mb-4">
@@ -162,7 +168,7 @@ export default function DashboardPage() {
                                             e.stopPropagation();
                                             deleteFlow(flow.id);
                                         }}
-                                        className="p-2 -mr-2 -mt-2 rounded-full text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all opacity-0 group-hover:opacity-100"
+                                        className="relative z-10 p-2 -mr-2 -mt-2 rounded-full text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all opacity-0 group-hover:opacity-100"
                                         title="Eliminar"
                                     >
                                         <Trash2 className="w-4 h-4" />
@@ -193,7 +199,7 @@ export default function DashboardPage() {
             )}
 
             {/* Keys Configuration Section - iOS Style Redesign */}
-            <div className="mt-16 mb-12 max-w-5xl mx-auto animate-in fade-in slide-in-from-bottom-6 duration-700 delay-200">
+            <div className="mt-16 mb-12 w-full animate-in fade-in slide-in-from-bottom-6 duration-700 delay-200">
                 <div className="group relative bg-white dark:bg-[#1c1c1e] rounded-[32px] p-8 md:p-10 border border-gray-100 dark:border-white/5 shadow-[0_2px_20px_-4px_rgba(0,0,0,0.05)] dark:shadow-none overflow-hidden transition-all duration-500 hover:shadow-[0_8px_30px_-4px_rgba(0,0,0,0.08)]">
 
                     {/* Subtle Background Glow */}
@@ -238,7 +244,7 @@ export default function DashboardPage() {
                         {/* Action Button */}
                         <div className="flex-shrink-0 pt-2 lg:pt-0 w-full lg:w-auto">
                             <button
-                                onClick={() => window.dispatchEvent(new CustomEvent('open-settings'))}
+                                onClick={() => window.dispatchEvent(new CustomEvent('open-settings', { detail: { tab: 'api', allowEdit: true } }))}
                                 className="group/btn relative w-full lg:w-auto inline-flex items-center justify-center gap-3 px-8 py-4 bg-[#007AFF] hover:bg-[#0062CC] text-white rounded-2xl font-medium text-[17px] shadow-sm transition-all duration-300 active:scale-[0.98]"
                             >
                                 <span className="relative z-10">Configurar API Keys</span>
@@ -315,6 +321,43 @@ export default function DashboardPage() {
                                     <span>Crear Proyecto</span>
                                 )}
                             </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {/* Delete Confirmation Modal */}
+            {flowToDelete && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                    <div
+                        className="absolute inset-0 bg-gray-900/20 dark:bg-black/40 backdrop-blur-sm transition-opacity"
+                        onClick={() => setFlowToDelete(null)}
+                    />
+                    <div className="relative bg-white dark:bg-gray-900 rounded-[2rem] shadow-2xl max-w-sm w-full overflow-hidden animate-in zoom-in-95 duration-300 border border-white/20 dark:border-gray-800">
+                        <div className="p-6 text-center">
+                            <div className="w-12 h-12 bg-red-50 dark:bg-red-900/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                                <Trash2 className="w-6 h-6 text-red-600 dark:text-red-400" />
+                            </div>
+                            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
+                                ¿Eliminar diagrama?
+                            </h3>
+                            <p className="text-gray-500 dark:text-gray-400 text-sm mb-6">
+                                Esta acción no se puede deshacer. El diagrama y todos sus datos se perderán permanentemente.
+                            </p>
+
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={() => setFlowToDelete(null)}
+                                    className="flex-1 px-4 py-3 bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 font-semibold rounded-xl transition-colors text-sm"
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    onClick={confirmDelete}
+                                    className="flex-1 px-4 py-3 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-red-500/25 transition-all duration-200 text-sm"
+                                >
+                                    Eliminar
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>

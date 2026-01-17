@@ -1,12 +1,15 @@
 'use client';
 
 import { useRouter, usePathname } from 'next/navigation';
-import { LogOut, Moon, Sun, ArrowLeft, Download, Settings, Bot, Server, Monitor, Database, Box, FileBox, FileJson, Upload, MoreVertical, ChevronUp } from 'lucide-react';
+import { LogOut, Moon, Sun, ArrowLeft, Download, Settings, Bot, Server, Monitor, Database, Box, FileBox, FileJson, Upload, MoreVertical, ChevronUp, Menu, ArrowUpDown, LayoutGrid } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { ImportFlowModal } from '@/components/ImportFlowModal';
 import { UserSettingsModal } from '@/components/UserSettingsModal';
 import { ExportInstructionsModal } from '@/components/ExportInstructionsModal';
+import { APIKeyConfigModal } from '@/components/APIKeyConfigModal';
+import Link from "next/link";
+import { Toaster } from "sonner";
 
 export default function DashboardLayout({
     children,
@@ -18,12 +21,25 @@ export default function DashboardLayout({
     const [darkMode, setDarkMode] = useState(false);
     const [showSidebar, setShowSidebar] = useState(false);
     const [showImportModal, setShowImportModal] = useState(false);
+
+    // Modal states
     const [showSettingsModal, setShowSettingsModal] = useState(false);
+    const [showAPIKeyModal, setShowAPIKeyModal] = useState(false);
+
+    // Settings modal specific state
+    const [settingsModalTab, setSettingsModalTab] = useState<'profile' | 'api'>('profile');
+    const [settingsModalAllowEdit, setSettingsModalAllowEdit] = useState(false);
+
     const [showExportModal, setShowExportModal] = useState(false);
+    const [exportModalType, setExportModalType] = useState<'workbench' | 'flow'>('workbench');
     const [showFooterMenu, setShowFooterMenu] = useState(false);
     const [user, setUser] = useState<any>(null);
     const supabase = createClient();
     const footerMenuRef = useRef<HTMLDivElement>(null);
+
+    const menuItems = [
+        { icon: Settings, label: 'Dashboard', href: '/dashboard' }, // Using Settings as placeholder, logic below overrides
+    ];
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -81,106 +97,368 @@ export default function DashboardLayout({
     };
 
     useEffect(() => {
-        const handleOpenSettings = () => setShowSettingsModal(true);
-        const handleExportSuccess = () => setShowExportModal(true);
+        const handleOpenSettings = (e: Event) => {
+            const customEvent = e as CustomEvent;
+            const detail = customEvent.detail || {};
+
+            // Logic to choose which modal to open
+            if (detail.tab === 'api' && detail.allowEdit) {
+                // Dashboard button Trigger -> Open Old Design (APIKeyConfigModal)
+                setShowAPIKeyModal(true);
+                setShowSettingsModal(false);
+            } else {
+                // Sidebar/Profile Trigger -> Open New Design (UserSettingsModal)
+                if (detail.tab) {
+                    setSettingsModalTab(detail.tab);
+                } else {
+                    setSettingsModalTab('profile');
+                }
+
+                if (detail.allowEdit) {
+                    setSettingsModalAllowEdit(true);
+                } else {
+                    setSettingsModalAllowEdit(false);
+                }
+
+                setShowSettingsModal(true);
+                setShowAPIKeyModal(false);
+            }
+        };
+        const handleExportZipSuccess = () => {
+            setExportModalType('workbench');
+            setShowExportModal(true);
+        };
+        const handleExportFlowSuccess = () => {
+            setExportModalType('flow');
+            setShowExportModal(true);
+        };
 
         window.addEventListener('open-settings', handleOpenSettings);
-        window.addEventListener('export-zip-success', handleExportSuccess);
+        window.addEventListener('export-zip-success', handleExportZipSuccess);
+        window.addEventListener('export-flow-success', handleExportFlowSuccess);
 
         return () => {
             window.removeEventListener('open-settings', handleOpenSettings);
-            window.removeEventListener('export-zip-success', handleExportSuccess);
+            window.removeEventListener('export-zip-success', handleExportZipSuccess);
+            window.removeEventListener('export-flow-success', handleExportFlowSuccess);
         };
     }, []);
 
     return (
-        <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-            {/* Navigation */}
-            <nav className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex flex-col md:flex-row h-screen overflow-hidden bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
+            {/* Navigation (Mobile/Tablet generally) */}
+            <nav className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 md:hidden">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex justify-between items-center h-16">
                         <div className="flex items-center gap-4">
-
+                            <button
+                                onClick={() => setShowSidebar(!showSidebar)}
+                                className="p-2 -ml-2 text-gray-600 dark:text-gray-300"
+                            >
+                                <Menu className="w-6 h-6" />
+                            </button>
                             <div>
                                 <h1 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white" style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif' }}>
                                     GraphicAI
                                 </h1>
                             </div>
                         </div>
-
-
                     </div>
                 </div>
             </nav>
 
-            {/* Sidebar */}
-            {showSidebar && (
-                <>
-                    {/* Backdrop */}
-                    <div
-                        className="fixed inset-0 bg-black/20 dark:bg-black/40 z-40 backdrop-blur-sm"
-                        onClick={() => setShowSidebar(false)}
-                    />
+            {/* Sidebar - Hidden on Flow Pages */}
+            {!pathname?.startsWith('/flow/') && (
+                <aside
+                    className={`
+                        fixed md:relative z-40 h-full bg-white dark:bg-[#1c1c1e] border-r border-gray-200 dark:border-white/5 transition-all duration-300
+                        ${showSidebar ? 'w-64 translate-x-0' : 'w-0 -translate-x-full md:w-64 md:translate-x-0 opacity-0 md:opacity-100'}
+                    `}
+                >
+                    <div className="flex flex-col h-full w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700">
+                        <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center text-white font-bold shadow-lg shadow-blue-500/20">
+                                G
+                            </div>
+                            <span className="font-bold text-lg text-gray-900 dark:text-white tracking-tight">
+                                GraphicAI
+                            </span>
+                        </div>
 
-                    {/* Sidebar panel */}
-                    <div className="fixed top-0 right-0 h-full w-80 bg-white dark:bg-gray-800 shadow-2xl z-50 border-l border-gray-200 dark:border-gray-700 animate-slide-in">
-                        <div className="flex flex-col h-full">
-                            {/* Sidebar header */}
-                            <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center ring-2 ring-blue-100 dark:ring-blue-900">
-                                        <span className="text-white text-lg font-semibold">
-                                            {user?.email?.[0].toUpperCase() || 'U'}
+                        {/* Sidebar content */}
+                        <div className="flex-1 p-4 space-y-1">
+                            <button
+                                onClick={() => {
+                                    router.push('/dashboard');
+                                    if (window.innerWidth < 768) setShowSidebar(false);
+                                }}
+                                className="w-full flex items-center gap-3 px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors text-left"
+                            >
+                                <span className="text-sm font-medium">Dashboard</span>
+                            </button>
+                        </div>
+
+                        <div className="p-4 border-t border-gray-200 dark:border-gray-700 space-y-2">
+                            <button
+                                onClick={() => {
+                                    setSettingsModalTab('profile');
+                                    setSettingsModalAllowEdit(false);
+                                    setShowSettingsModal(true);
+                                    if (window.innerWidth < 768) setShowSidebar(false);
+                                }}
+                                className="w-full flex items-center gap-3 px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                            >
+                                <Settings className="w-5 h-5" />
+                                <span className="text-sm font-medium">Configuración</span>
+                            </button>
+                            <button
+                                onClick={handleLogout}
+                                className="w-full flex items-center gap-3 px-4 py-3 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                            >
+                                <LogOut className="w-5 h-5" />
+                                <span className="text-sm font-medium">Cerrar sesión</span>
+                            </button>
+                        </div>
+                    </div>
+                </aside>
+            )}
+
+            {/* Mobile Overlay */}
+            {showSidebar && (
+                <div
+                    className="fixed inset-0 bg-black/20 backdrop-blur-sm z-30 md:hidden"
+                    onClick={() => setShowSidebar(false)}
+                />
+            )}
+
+            <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+                {/* Layout */}
+                <div className="flex h-full">
+                    {/* Left Sidebar - Only visible in flow view */}
+                    {pathname?.startsWith('/flow/') && (
+                        <aside className="w-[320px] bg-white/80 dark:bg-[#1c1c1e]/80 backdrop-blur-2xl border-r border-gray-200/50 dark:border-white/5 overflow-y-auto flex flex-col h-full shadow-[4px_0_24px_-12px_rgba(0,0,0,0.1)] z-20 transition-all duration-300">
+                            {/* Navigation Section */}
+                            <div className="p-5 pt-6 pb-2">
+                                <button
+                                    onClick={() => router.push('/dashboard')}
+                                    className="group w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white rounded-xl transition-all hover:bg-black/5 dark:hover:bg-white/5"
+                                >
+                                    <div className="p-1.5 rounded-lg bg-gray-100 dark:bg-gray-800 group-hover:bg-white dark:group-hover:bg-gray-700 shadow-sm transition-colors">
+                                        <ArrowLeft className="w-4 h-4" />
+                                    </div>
+                                    <span className="font-semibold tracking-tight">Volver al Dashboard</span>
+                                </button>
+                            </div>
+
+                            <div className="flex-1 overflow-y-auto px-5 py-4 space-y-8">
+                                {/* Tools Section */}
+                                <div>
+                                    <div className="flex items-center justify-between px-1 mb-3">
+                                        <h3 className="text-[13px] font-semibold text-gray-900 dark:text-gray-100 tracking-tight">Biblioteca de Nodos</h3>
+                                        <span className="text-[10px] font-medium text-gray-400 bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded-full">
+                                            Drag & Drop
                                         </span>
                                     </div>
-                                    <div className="flex-1">
-                                        <p className="text-sm font-semibold text-gray-900 dark:text-white">
-                                            {user?.email?.split('@')[0] || 'Usuario'}
-                                        </p>
-                                        <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                                            {user?.email || 'usuario@example.com'}
-                                        </p>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <button
+                                            onClick={() => window.dispatchEvent(new CustomEvent('create-node', { detail: { entityType: 'LLM Agent' } }))}
+                                            className="relative flex flex-col items-center justify-center p-3 rounded-2xl border border-gray-200/60 dark:border-gray-700/50 bg-white/80 dark:bg-gray-800/40 hover:bg-white dark:hover:bg-gray-800 hover:border-purple-200 dark:hover:border-purple-900/50 hover:shadow-sm hover:-translate-y-0.5 transition-all duration-300 group text-center"
+                                        >
+                                            <div className="mb-2 p-2.5 rounded-xl bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 group-hover:scale-110 transition-transform duration-300 shadow-sm">
+                                                <Bot className="w-5 h-5" />
+                                            </div>
+                                            <span className="text-xs font-semibold text-gray-900 dark:text-white mb-0.5">LLM Agent</span>
+                                            <span className="text-[9px] text-gray-400 dark:text-gray-500 font-medium">Procesamiento</span>
+                                        </button>
+
+                                        <button
+                                            onClick={() => window.dispatchEvent(new CustomEvent('create-node', { detail: { entityType: 'MCP Server' } }))}
+                                            className="relative flex flex-col items-center justify-center p-3 rounded-2xl border border-gray-200/60 dark:border-gray-700/50 bg-white/80 dark:bg-gray-800/40 hover:bg-white dark:hover:bg-gray-800 hover:border-emerald-200 dark:hover:border-emerald-900/50 hover:shadow-sm hover:-translate-y-0.5 transition-all duration-300 group text-center"
+                                        >
+                                            <div className="mb-2 p-2.5 rounded-xl bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 group-hover:scale-110 transition-transform duration-300 shadow-sm">
+                                                <Server className="w-5 h-5" />
+                                            </div>
+                                            <span className="text-xs font-semibold text-gray-900 dark:text-white mb-0.5">MCP Server</span>
+                                            <span className="text-[9px] text-gray-400 dark:text-gray-500 font-medium">Herramientas</span>
+                                        </button>
+
+                                        <button
+                                            onClick={() => window.dispatchEvent(new CustomEvent('create-node', { detail: { entityType: 'Client Interface' } }))}
+                                            className="relative flex flex-col items-center justify-center p-3 rounded-2xl border border-gray-200/60 dark:border-gray-700/50 bg-white/80 dark:bg-gray-800/40 hover:bg-white dark:hover:bg-gray-800 hover:border-blue-200 dark:hover:border-blue-900/50 hover:shadow-sm hover:-translate-y-0.5 transition-all duration-300 group text-center"
+                                        >
+                                            <div className="mb-2 p-2.5 rounded-xl bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform duration-300 shadow-sm">
+                                                <Monitor className="w-5 h-5" />
+                                            </div>
+                                            <span className="text-xs font-semibold text-gray-900 dark:text-white mb-0.5">Interface</span>
+                                            <span className="text-[9px] text-gray-400 dark:text-gray-500 font-medium">Cliente</span>
+                                        </button>
+
+                                        <button
+                                            onClick={() => window.dispatchEvent(new CustomEvent('create-node', { detail: { entityType: 'Database' } }))}
+                                            className="relative flex flex-col items-center justify-center p-3 rounded-2xl border border-gray-200/60 dark:border-gray-700/50 bg-white/80 dark:bg-gray-800/40 hover:bg-white dark:hover:bg-gray-800 hover:border-amber-200 dark:hover:border-amber-900/50 hover:shadow-sm hover:-translate-y-0.5 transition-all duration-300 group text-center"
+                                        >
+                                            <div className="mb-2 p-2.5 rounded-xl bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 group-hover:scale-110 transition-transform duration-300 shadow-sm">
+                                                <Database className="w-5 h-5" />
+                                            </div>
+                                            <span className="text-xs font-semibold text-gray-900 dark:text-white mb-0.5">Base de Datos</span>
+                                            <span className="text-[9px] text-gray-400 dark:text-gray-500 font-medium">Almacenamiento</span>
+                                        </button>
+
+                                        <button
+                                            onClick={() => window.dispatchEvent(new CustomEvent('create-node', { detail: { entityType: 'Storage' } }))}
+                                            className="relative flex flex-col items-center justify-center p-3 rounded-2xl border border-gray-200/60 dark:border-gray-700/50 bg-white/80 dark:bg-gray-800/40 hover:bg-white dark:hover:bg-gray-800 hover:border-rose-200 dark:hover:border-rose-900/50 hover:shadow-sm hover:-translate-y-0.5 transition-all duration-300 group text-center"
+                                        >
+                                            <div className="mb-2 p-2.5 rounded-xl bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 group-hover:scale-110 transition-transform duration-300 shadow-sm">
+                                                <Box className="w-5 h-5" />
+                                            </div>
+                                            <span className="text-xs font-semibold text-gray-900 dark:text-white mb-0.5">Storage</span>
+                                            <span className="text-[9px] text-gray-400 dark:text-gray-500 font-medium">Archivos</span>
+                                        </button>
+
+                                        <button
+                                            onClick={() => window.dispatchEvent(new CustomEvent('create-node', { detail: { entityType: 'Annotation' } }))}
+                                            className="relative flex flex-col items-center justify-center p-3 rounded-2xl border border-gray-200/60 dark:border-gray-700/50 bg-white/80 dark:bg-gray-800/40 hover:bg-white dark:hover:bg-gray-800 hover:border-gray-300 dark:hover:border-gray-600 hover:shadow-sm hover:-translate-y-0.5 transition-all duration-300 group text-center col-span-2"
+                                        >
+                                            <div className="mb-2 p-2.5 rounded-xl bg-gray-100 dark:bg-gray-700/50 text-gray-600 dark:text-gray-300 group-hover:scale-110 transition-transform duration-300 shadow-sm">
+                                                <LayoutGrid className="w-5 h-5" />
+                                            </div>
+                                            <span className="text-xs font-semibold text-gray-900 dark:text-white mb-0.5">Grupo Visual</span>
+                                            <span className="text-[9px] text-gray-400 dark:text-gray-500 font-medium">Comentarios / Organización</span>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {/* Configuration Files Section */}
+                                <div>
+                                    <div className="flex items-center justify-between px-1 mb-3 pt-2">
+                                        <h3 className="text-[13px] font-semibold text-gray-900 dark:text-gray-100 tracking-tight">Configuración MCP</h3>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <button
+                                            onClick={() => window.dispatchEvent(new CustomEvent('open-mcp-import-modal'))}
+                                            className="relative flex flex-col items-center justify-center p-2.5 rounded-xl border border-gray-200/60 dark:border-gray-700/50 bg-white/50 dark:bg-gray-800/20 hover:bg-white dark:hover:bg-gray-800 hover:border-blue-200 dark:hover:border-blue-800 transition-all duration-200 group text-center"
+                                        >
+                                            <div className="mb-1.5 p-1.5 rounded-lg bg-blue-100/50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform">
+                                                <Upload className="w-4 h-4" />
+                                            </div>
+                                            <span className="text-[10px] font-semibold text-gray-900 dark:text-white">Importar</span>
+                                            <span className="text-[9px] text-gray-400 dark:text-gray-500">JSON</span>
+                                        </button>
+
+                                        <button
+                                            onClick={() => window.dispatchEvent(new CustomEvent('request-mcp-export'))}
+                                            className="relative flex flex-col items-center justify-center p-2.5 rounded-xl border border-gray-200/60 dark:border-gray-700/50 bg-white/50 dark:bg-gray-800/20 hover:bg-white dark:hover:bg-gray-800 hover:border-blue-200 dark:hover:border-blue-800 transition-all duration-200 group text-center"
+                                        >
+                                            <div className="mb-1.5 p-1.5 rounded-lg bg-blue-100/50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform">
+                                                <FileJson className="w-4 h-4" />
+                                            </div>
+                                            <span className="text-[10px] font-semibold text-gray-900 dark:text-white">Exportar Config</span>
+                                            <span className="text-[9px] text-gray-400 dark:text-gray-500">Claude</span>
+                                        </button>
                                     </div>
                                 </div>
                             </div>
 
-                            {/* Sidebar content */}
-                            <div className="flex-1 p-4 space-y-1">
-                                <button
-                                    onClick={() => {
-                                        router.push('/dashboard');
-                                        setShowSidebar(false);
-                                    }}
-                                    className="w-full flex items-center gap-3 px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors text-left"
-                                >
-                                    <span className="text-sm font-medium">Dashboard</span>
-                                </button>
-                            </div>
+                            {/* Redesigned Footer: Profile + Settings + System Menu */}
+                            <div className="p-4 border-t border-gray-200/50 dark:border-white/5 bg-gray-50/50 dark:bg-black/20 backdrop-blur-xl">
+                                <div className="flex items-center justify-between gap-2">
+                                    {/* Profile Info */}
+                                    <button
+                                        onClick={() => setShowSettingsModal(true)}
+                                        className="flex items-center gap-3 min-w-0 flex-1 hover:bg-white/50 dark:hover:bg-white/5 p-2 rounded-xl transition-all duration-200 text-left group border border-transparent hover:border-gray-200/50 dark:hover:border-white/5"
+                                    >
+                                        <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-600 to-purple-600 flex items-center justify-center text-white text-xs font-bold ring-2 ring-white dark:ring-gray-800 shadow-sm group-hover:scale-105 transition-transform">
+                                            {user?.email?.[0]?.toUpperCase() || 'U'}
+                                        </div>
+                                        <div className="flex flex-col min-w-0">
+                                            <span className="text-xs font-semibold text-gray-900 dark:text-white truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                                                {user?.email?.split('@')[0] || 'Usuario'}
+                                            </span>
+                                            <span className="text-[10px] text-gray-400 truncate">
+                                                Configuración
+                                            </span>
+                                        </div>
+                                    </button>
 
-                            {/* Sidebar footer */}
-                            <div className="p-4 border-t border-gray-200 dark:border-gray-700 space-y-2">
-                                <button
-                                    onClick={() => {
-                                        setShowSettingsModal(true);
-                                        setShowSidebar(false);
-                                    }}
-                                    className="w-full flex items-center gap-3 px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-                                >
-                                    <Settings className="w-5 h-5" />
-                                    <span className="text-sm font-medium">Configuración</span>
-                                </button>
-                                <button
-                                    onClick={handleLogout}
-                                    className="w-full flex items-center gap-3 px-4 py-3 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                                >
-                                    <LogOut className="w-5 h-5" />
-                                    <span className="text-sm font-medium">Cerrar sesión</span>
-                                </button>
+                                    {/* Actions Right */}
+                                    <div className="flex items-center gap-1">
+
+
+                                        {/* System Menu Dropdown */}
+                                        <div className="relative" ref={footerMenuRef}>
+                                            <button
+                                                onClick={() => setShowFooterMenu(!showFooterMenu)}
+                                                className={`p-2 transition-all duration-200 rounded-lg ${showFooterMenu ? 'bg-white dark:bg-white/10 text-gray-900 dark:text-white' : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-white dark:hover:bg-white/10'}`}
+                                            >
+                                                <ArrowUpDown className="w-4 h-4" />
+                                            </button>
+
+                                            {/* Dropdown Content - Popover Upwards */}
+                                            {showFooterMenu && (
+                                                <div className="absolute bottom-full right-0 mb-3 w-60 bg-white/90 dark:bg-[#1c1c1e]/90 backdrop-blur-xl rounded-2xl shadow-2xl border border-gray-200/60 dark:border-white/10 overflow-hidden animate-in slide-in-from-bottom-2 fade-in duration-200 p-1.5 z-50">
+                                                    <div className="px-2 py-1.5 border-b border-gray-100 dark:border-white/5 mb-1">
+                                                        <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Acciones del Sistema</span>
+                                                    </div>
+
+                                                    <button
+                                                        onClick={() => {
+                                                            window.dispatchEvent(new CustomEvent('export-workbench-zip'));
+                                                            setShowFooterMenu(false);
+                                                        }}
+                                                        className="w-full flex items-center gap-3 px-3 py-2.5 text-xs font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10 rounded-xl transition-colors"
+                                                    >
+                                                        <div className="p-1.5 bg-rose-100 dark:bg-rose-900/30 text-rose-600 rounded-lg">
+                                                            <FileBox className="w-3.5 h-3.5" />
+                                                        </div>
+                                                        <span>Exportar Workbench</span>
+                                                    </button>
+                                                    <button
+                                                        onClick={() => {
+                                                            window.dispatchEvent(new CustomEvent('export-flow'));
+                                                            setShowFooterMenu(false);
+                                                        }}
+                                                        className="w-full flex items-center gap-3 px-3 py-2.5 text-xs font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10 rounded-xl transition-colors"
+                                                    >
+                                                        <div className="p-1.5 bg-blue-100 dark:bg-blue-900/30 text-blue-600 rounded-lg">
+                                                            <Download className="w-3.5 h-3.5" />
+                                                        </div>
+                                                        <span>Exportar Flujo</span>
+                                                    </button>
+                                                    <button
+                                                        onClick={() => {
+                                                            setShowImportModal(true);
+                                                            setShowFooterMenu(false);
+                                                        }}
+                                                        className="w-full flex items-center gap-3 px-3 py-2.5 text-xs font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10 rounded-xl transition-colors"
+                                                    >
+                                                        <div className="p-1.5 bg-purple-100 dark:bg-purple-900/30 text-purple-600 rounded-lg">
+                                                            <Upload className="w-3.5 h-3.5" />
+                                                        </div>
+                                                        <span>Importar Flujo</span>
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
+                        </aside>
+                    )}
+
+                    <ImportFlowModal
+                        isOpen={showImportModal}
+                        onClose={() => setShowImportModal(false)}
+                    />
+
+                    {/* Main Content */}
+                    <main className={`flex-1 bg-gray-50 dark:bg-gray-900 ${pathname?.startsWith('/flow/') ? 'overflow-hidden' : 'overflow-auto'}`}>
+                        <div className={pathname?.startsWith('/flow/') ? 'h-full' : 'max-w-7xl mx-auto p-8'}>
+                            {children}
                         </div>
-                    </div>
-                </>
-            )}
+                    </main>
+                </div>
+            </div>
 
             <UserSettingsModal
                 isOpen={showSettingsModal}
@@ -188,228 +466,22 @@ export default function DashboardLayout({
                 user={user}
                 darkMode={darkMode}
                 toggleTheme={toggleDarkMode}
+                initialTab={settingsModalTab}
+                allowEdit={settingsModalAllowEdit}
+            />
+
+            <APIKeyConfigModal
+                isOpen={showAPIKeyModal}
+                onClose={() => setShowAPIKeyModal(false)}
             />
 
             <ExportInstructionsModal
                 isOpen={showExportModal}
                 onClose={() => setShowExportModal(false)}
+                type={exportModalType}
             />
 
-            {/* Layout */}
-            <div className="flex h-[calc(100vh-4rem)]">
-                {/* Left Sidebar - Only visible in flow view */}
-                {pathname?.startsWith('/flow/') && (
-                    <aside className="w-[320px] bg-white/80 dark:bg-[#1c1c1e]/80 backdrop-blur-2xl border-r border-gray-200/50 dark:border-white/5 overflow-y-auto flex flex-col h-full shadow-[4px_0_24px_-12px_rgba(0,0,0,0.1)] z-20 transition-all duration-300">
-                        {/* Navigation Section */}
-                        <div className="p-5 pt-6 pb-2">
-                            <button
-                                onClick={() => router.push('/dashboard')}
-                                className="group w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white rounded-xl transition-all hover:bg-black/5 dark:hover:bg-white/5"
-                            >
-                                <div className="p-1.5 rounded-lg bg-gray-100 dark:bg-gray-800 group-hover:bg-white dark:group-hover:bg-gray-700 shadow-sm transition-colors">
-                                    <ArrowLeft className="w-4 h-4" />
-                                </div>
-                                <span className="font-semibold tracking-tight">Volver al Dashboard</span>
-                            </button>
-                        </div>
-
-                        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-8">
-                            {/* Tools Section */}
-                            <div>
-                                <div className="flex items-center justify-between px-1 mb-3">
-                                    <h3 className="text-[13px] font-semibold text-gray-900 dark:text-gray-100 tracking-tight">Biblioteca de Nodos</h3>
-                                    <span className="text-[10px] font-medium text-gray-400 bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded-full">
-                                        Drag & Drop
-                                    </span>
-                                </div>
-                                <div className="grid grid-cols-2 gap-3">
-                                    <button
-                                        onClick={() => window.dispatchEvent(new CustomEvent('create-node', { detail: { entityType: 'LLM Agent' } }))}
-                                        className="relative flex flex-col items-center justify-center p-3 rounded-2xl border border-gray-200/60 dark:border-gray-700/50 bg-white/80 dark:bg-gray-800/40 hover:bg-white dark:hover:bg-gray-800 hover:border-purple-200 dark:hover:border-purple-900/50 hover:shadow-sm hover:-translate-y-0.5 transition-all duration-300 group text-center"
-                                    >
-                                        <div className="mb-2 p-2.5 rounded-xl bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 group-hover:scale-110 transition-transform duration-300 shadow-sm">
-                                            <Bot className="w-5 h-5" />
-                                        </div>
-                                        <span className="text-xs font-semibold text-gray-900 dark:text-white mb-0.5">LLM Agent</span>
-                                        <span className="text-[9px] text-gray-400 dark:text-gray-500 font-medium">Procesamiento</span>
-                                    </button>
-
-                                    <button
-                                        onClick={() => window.dispatchEvent(new CustomEvent('create-node', { detail: { entityType: 'MCP Server' } }))}
-                                        className="relative flex flex-col items-center justify-center p-3 rounded-2xl border border-gray-200/60 dark:border-gray-700/50 bg-white/80 dark:bg-gray-800/40 hover:bg-white dark:hover:bg-gray-800 hover:border-emerald-200 dark:hover:border-emerald-900/50 hover:shadow-sm hover:-translate-y-0.5 transition-all duration-300 group text-center"
-                                    >
-                                        <div className="mb-2 p-2.5 rounded-xl bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 group-hover:scale-110 transition-transform duration-300 shadow-sm">
-                                            <Server className="w-5 h-5" />
-                                        </div>
-                                        <span className="text-xs font-semibold text-gray-900 dark:text-white mb-0.5">MCP Server</span>
-                                        <span className="text-[9px] text-gray-400 dark:text-gray-500 font-medium">Herramientas</span>
-                                    </button>
-
-                                    <button
-                                        onClick={() => window.dispatchEvent(new CustomEvent('create-node', { detail: { entityType: 'Client Interface' } }))}
-                                        className="relative flex flex-col items-center justify-center p-3 rounded-2xl border border-gray-200/60 dark:border-gray-700/50 bg-white/80 dark:bg-gray-800/40 hover:bg-white dark:hover:bg-gray-800 hover:border-blue-200 dark:hover:border-blue-900/50 hover:shadow-sm hover:-translate-y-0.5 transition-all duration-300 group text-center"
-                                    >
-                                        <div className="mb-2 p-2.5 rounded-xl bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform duration-300 shadow-sm">
-                                            <Monitor className="w-5 h-5" />
-                                        </div>
-                                        <span className="text-xs font-semibold text-gray-900 dark:text-white mb-0.5">Interface</span>
-                                        <span className="text-[9px] text-gray-400 dark:text-gray-500 font-medium">Cliente</span>
-                                    </button>
-
-                                    <button
-                                        onClick={() => window.dispatchEvent(new CustomEvent('create-node', { detail: { entityType: 'Database' } }))}
-                                        className="relative flex flex-col items-center justify-center p-3 rounded-2xl border border-gray-200/60 dark:border-gray-700/50 bg-white/80 dark:bg-gray-800/40 hover:bg-white dark:hover:bg-gray-800 hover:border-amber-200 dark:hover:border-amber-900/50 hover:shadow-sm hover:-translate-y-0.5 transition-all duration-300 group text-center"
-                                    >
-                                        <div className="mb-2 p-2.5 rounded-xl bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 group-hover:scale-110 transition-transform duration-300 shadow-sm">
-                                            <Database className="w-5 h-5" />
-                                        </div>
-                                        <span className="text-xs font-semibold text-gray-900 dark:text-white mb-0.5">Base de Datos</span>
-                                        <span className="text-[9px] text-gray-400 dark:text-gray-500 font-medium">Almacenamiento</span>
-                                    </button>
-
-                                    <button
-                                        onClick={() => window.dispatchEvent(new CustomEvent('create-node', { detail: { entityType: 'Storage' } }))}
-                                        className="relative flex flex-col items-center justify-center p-3 rounded-2xl border border-gray-200/60 dark:border-gray-700/50 bg-white/80 dark:bg-gray-800/40 hover:bg-white dark:hover:bg-gray-800 hover:border-rose-200 dark:hover:border-rose-900/50 hover:shadow-sm hover:-translate-y-0.5 transition-all duration-300 group text-center"
-                                    >
-                                        <div className="mb-2 p-2.5 rounded-xl bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 group-hover:scale-110 transition-transform duration-300 shadow-sm">
-                                            <Box className="w-5 h-5" />
-                                        </div>
-                                        <span className="text-xs font-semibold text-gray-900 dark:text-white mb-0.5">Storage</span>
-                                        <span className="text-[9px] text-gray-400 dark:text-gray-500 font-medium">Archivos</span>
-                                    </button>
-                                </div>
-                            </div>
-
-                            {/* Configuration Files Section */}
-                            <div>
-                                <div className="flex items-center justify-between px-1 mb-3 pt-2">
-                                    <h3 className="text-[13px] font-semibold text-gray-900 dark:text-gray-100 tracking-tight">Archivos de Configuración</h3>
-                                </div>
-
-                                <div className="grid grid-cols-2 gap-2">
-                                    <button
-                                        onClick={() => window.dispatchEvent(new CustomEvent('open-mcp-import-modal'))}
-                                        className="relative flex flex-col items-center justify-center p-2.5 rounded-xl border border-gray-200/60 dark:border-gray-700/50 bg-white/50 dark:bg-gray-800/20 hover:bg-white dark:hover:bg-gray-800 hover:border-blue-200 dark:hover:border-blue-800 transition-all duration-200 group text-center"
-                                    >
-                                        <div className="mb-1.5 p-1.5 rounded-lg bg-blue-100/50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform">
-                                            <Upload className="w-4 h-4" />
-                                        </div>
-                                        <span className="text-[10px] font-semibold text-gray-900 dark:text-white">Importar</span>
-                                        <span className="text-[9px] text-gray-400 dark:text-gray-500">JSON</span>
-                                    </button>
-
-                                    <button
-                                        onClick={() => window.dispatchEvent(new CustomEvent('request-mcp-export'))}
-                                        className="relative flex flex-col items-center justify-center p-2.5 rounded-xl border border-gray-200/60 dark:border-gray-700/50 bg-white/50 dark:bg-gray-800/20 hover:bg-white dark:hover:bg-gray-800 hover:border-blue-200 dark:hover:border-blue-800 transition-all duration-200 group text-center"
-                                    >
-                                        <div className="mb-1.5 p-1.5 rounded-lg bg-blue-100/50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform">
-                                            <FileJson className="w-4 h-4" />
-                                        </div>
-                                        <span className="text-[10px] font-semibold text-gray-900 dark:text-white">Exportar</span>
-                                        <span className="text-[9px] text-gray-400 dark:text-gray-500">Claude</span>
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Redesigned Footer: Profile + Settings + System Menu */}
-                        <div className="p-4 border-t border-gray-200/50 dark:border-white/5 bg-gray-50/50 dark:bg-black/20 backdrop-blur-xl">
-                            <div className="flex items-center justify-between gap-2">
-                                {/* Profile Info */}
-                                <button
-                                    onClick={() => setShowSettingsModal(true)}
-                                    className="flex items-center gap-3 min-w-0 flex-1 hover:bg-white/50 dark:hover:bg-white/5 p-2 rounded-xl transition-all duration-200 text-left group border border-transparent hover:border-gray-200/50 dark:hover:border-white/5"
-                                >
-                                    <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-600 to-purple-600 flex items-center justify-center text-white text-xs font-bold ring-2 ring-white dark:ring-gray-800 shadow-sm group-hover:scale-105 transition-transform">
-                                        {user?.email?.[0]?.toUpperCase() || 'U'}
-                                    </div>
-                                    <div className="flex flex-col min-w-0">
-                                        <span className="text-xs font-semibold text-gray-900 dark:text-white truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                                            {user?.email?.split('@')[0] || 'Usuario'}
-                                        </span>
-                                        <span className="text-[10px] text-gray-400 truncate">
-                                            Configuración
-                                        </span>
-                                    </div>
-                                </button>
-
-                                {/* Actions Right */}
-                                <div className="flex items-center gap-1">
-
-
-                                    {/* System Menu Dropdown */}
-                                    <div className="relative" ref={footerMenuRef}>
-                                        <button
-                                            onClick={() => setShowFooterMenu(!showFooterMenu)}
-                                            className={`p-2 transition-all duration-200 rounded-lg ${showFooterMenu ? 'bg-white dark:bg-white/10 text-gray-900 dark:text-white' : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-white dark:hover:bg-white/10'}`}
-                                        >
-                                            <MoreVertical className="w-4 h-4" />
-                                        </button>
-
-                                        {/* Dropdown Content - Popover Upwards */}
-                                        {showFooterMenu && (
-                                            <div className="absolute bottom-full right-0 mb-3 w-60 bg-white/90 dark:bg-[#1c1c1e]/90 backdrop-blur-xl rounded-2xl shadow-2xl border border-gray-200/60 dark:border-white/10 overflow-hidden animate-in slide-in-from-bottom-2 fade-in duration-200 p-1.5 z-50">
-                                                <div className="px-2 py-1.5 border-b border-gray-100 dark:border-white/5 mb-1">
-                                                    <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Acciones del Sistema</span>
-                                                </div>
-
-                                                <button
-                                                    onClick={() => {
-                                                        window.dispatchEvent(new CustomEvent('export-workbench-zip'));
-                                                        setShowFooterMenu(false);
-                                                    }}
-                                                    className="w-full flex items-center gap-3 px-3 py-2.5 text-xs font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10 rounded-xl transition-colors"
-                                                >
-                                                    <div className="p-1.5 bg-rose-100 dark:bg-rose-900/30 text-rose-600 rounded-lg">
-                                                        <FileBox className="w-3.5 h-3.5" />
-                                                    </div>
-                                                    <span>Exportar Workbench</span>
-                                                </button>
-                                                <button
-                                                    onClick={() => {
-                                                        window.dispatchEvent(new CustomEvent('export-flow'));
-                                                        setShowFooterMenu(false);
-                                                    }}
-                                                    className="w-full flex items-center gap-3 px-3 py-2.5 text-xs font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10 rounded-xl transition-colors"
-                                                >
-                                                    <div className="p-1.5 bg-blue-100 dark:bg-blue-900/30 text-blue-600 rounded-lg">
-                                                        <Download className="w-3.5 h-3.5" />
-                                                    </div>
-                                                    <span>Exportar Config</span>
-                                                </button>
-                                                <button
-                                                    onClick={() => {
-                                                        setShowImportModal(true);
-                                                        setShowFooterMenu(false);
-                                                    }}
-                                                    className="w-full flex items-center gap-3 px-3 py-2.5 text-xs font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10 rounded-xl transition-colors"
-                                                >
-                                                    <div className="p-1.5 bg-purple-100 dark:bg-purple-900/30 text-purple-600 rounded-lg">
-                                                        <Upload className="w-3.5 h-3.5" />
-                                                    </div>
-                                                    <span>Importar Flujo</span>
-                                                </button>
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </aside>
-                )}
-
-                <ImportFlowModal
-                    isOpen={showImportModal}
-                    onClose={() => setShowImportModal(false)}
-                />
-
-                {/* Main Content */}
-                <main className="flex-1 overflow-auto bg-gray-50 dark:bg-gray-900">
-                    <div className={pathname?.startsWith('/flow/') ? 'h-full' : 'max-w-7xl mx-auto p-8'}>
-                        {children}
-                    </div>
-                </main>
-            </div>
+            <Toaster position="bottom-right" theme={darkMode ? 'dark' : 'light'} />
         </div>
     );
 }

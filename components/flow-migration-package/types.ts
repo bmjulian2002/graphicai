@@ -13,6 +13,7 @@ export interface ModelPricing {
 export interface ModelData {
     id: string;
     name: string;
+    provider?: string;
     pricing: ModelPricing;
 }
 

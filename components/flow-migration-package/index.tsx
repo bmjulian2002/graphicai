@@ -29,6 +29,7 @@ import { AnimatedBackground } from './components/AnimatedBackground';
 import { MCPExportModal } from './components/MCPExportModal';
 import { MCPImportModal } from './components/MCPImportModal';
 import { LLMNode, MCPNode, ClientNode, ErrorNode } from './nodes/CustomNodes';
+import { AnnotationNode } from './nodes/AnnotationNode';
 
 // Interfaces for component props if needed to be controlled from outside
 interface FlowPackageProps {
@@ -42,6 +43,7 @@ const nodeTypes = {
     mcpNode: MCPNode,
     clientNode: ClientNode,
     errorNode: ErrorNode,
+    annotationNode: AnnotationNode,
 };
 
 // Default Data (Copied from original for standalone capability)
@@ -57,7 +59,11 @@ const defaultNodes: Node[] = [
 ];
 
 export default function FlowMigrationPackage({ initialNodes: propNodes, initialEdges: propEdges, onSave }: FlowPackageProps) {
+    // Wrap setNodes to inject the onChange handler for AnnotationNode
     const [nodes, setNodes, onNodesChange] = useNodesState(propNodes || defaultNodes);
+
+    // nodesWithHandler removed as AnnotationNode is now read-only on canvas
+
     const [edges, setEdges, onEdgesChange] = useEdgesState(propEdges || []);
     const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
     const [isFullscreen, setIsFullscreen] = useState(false);
@@ -263,6 +269,7 @@ export default function FlowMigrationPackage({ initialNodes: propNodes, initialE
             link.click();
             document.body.removeChild(link);
             URL.revokeObjectURL(url);
+            window.dispatchEvent(new CustomEvent('export-flow-success'));
         };
 
         const handleExportZip = async () => {
@@ -282,6 +289,14 @@ export default function FlowMigrationPackage({ initialNodes: propNodes, initialE
             if (agentNodes.length === 0) {
                 alert("No hay agentes (LLM Agent) para exportar.");
                 return;
+            }
+
+            // Helper: Find Project Memory from Client Interface
+            const clientNode = nodesRef.current.find(n => n.data.entityType === 'Client Interface');
+            const projectMemory = clientNode?.data.sharedContext as string || '';
+
+            if (projectMemory) {
+                workflowFolder.file("project_memory.md", projectMemory);
             }
 
             // Generate Markdown for each agent
@@ -313,6 +328,10 @@ export default function FlowMigrationPackage({ initialNodes: propNodes, initialE
 
                 // Build Context String
                 let contextString = `This agent is designed to run on the **${modelId}** model.\n\n`;
+
+                if (projectMemory) {
+                    contextString += `> **Project Memory**: You have access to a centralized project memory. Consult \`project_memory.md\` for absolute context, coding standards, and project rules.\n\n`;
+                }
 
                 contextString += `### Context & Connections\n`;
                 if (connectedClients.length > 0) {
@@ -516,6 +535,12 @@ ${systemPrompt}
                     tools: ['upload', 'download', 'delete'],
                     resources: 's3://bucket-name',
                 };
+            case 'Annotation':
+                return {
+                    ...baseData,
+                    label: 'New Group',
+                    comment: '',
+                };
             default:
                 return baseData;
         }
@@ -531,6 +556,8 @@ ${systemPrompt}
                 return 'mcpNode';
             case 'Client Interface':
                 return 'clientNode';
+            case 'Annotation':
+                return 'annotationNode';
             default:
                 return 'llmNode';
         }
@@ -541,7 +568,8 @@ ${systemPrompt}
             id: `node-${Date.now()}`,
             type: getNodeTypeFromEntity(entityType),
             position: { x: 400, y: 300 },
-            data: getDefaultDataForEntity(entityType)
+            data: getDefaultDataForEntity(entityType),
+            zIndex: entityType === 'Annotation' ? -1 : 0
         };
         setNodes((nds) => [...nds, newNode]);
     }, [setNodes]);
@@ -665,6 +693,37 @@ ${systemPrompt}
                 .animation-delay-4000 {
                     animation-delay: 4s;
                 }
+
+                /* React Flow Controls Styling */
+                .react-flow__controls-button {
+                    background-color: #ffffff;
+                    border-bottom: 1px solid #eeeeee;
+                    color: #6b7280; /* gray-500 */
+                }
+                .react-flow__controls-button:hover {
+                    background-color: #f9fafb; /* gray-50 */
+                    color: #111827; /* gray-900 */
+                }
+                .react-flow__controls-button svg {
+                    fill: currentColor;
+                    max-width: 14px;
+                    max-height: 14px;
+                }
+                
+                /* Dark Mode overrides for Controls */
+                html.dark .react-flow__controls-button {
+                    background-color: #1f2937; /* gray-800 */
+                    border-bottom: 1px solid #374151; /* gray-700 */
+                    color: #9ca3af; /* gray-400 */
+                }
+                html.dark .react-flow__controls-button:hover {
+                    background-color: #374151; /* gray-700 */
+                    color: #f3f4f6; /* gray-100 */
+                }
+                html.dark .react-flow__controls {
+                    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
+                    border: 1px solid #374151;
+                }
             `}</style>
 
             {/* Custom Markers Definition */}
@@ -697,7 +756,7 @@ ${systemPrompt}
 
                     <button
                         onClick={() => setIsFullscreen(!isFullscreen)}
-                        className="absolute top-4 left-4 z-50 p-2 bg-white rounded-full shadow-md z-50"
+                        className="absolute top-4 left-4 z-50 p-2 bg-white dark:bg-gray-800 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white rounded-full shadow-md border border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200"
                     >
                         {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
                     </button>
