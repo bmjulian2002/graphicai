@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { LogIn, Mail, Lock, Loader2 } from 'lucide-react';
+import { LogIn, Mail, Lock, Loader2, ChevronRight, Apple } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 
 export default function LoginPage() {
@@ -39,97 +39,110 @@ export default function LoginPage() {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800 p-4">
-            <div className="w-full max-w-md">
-                {/* Logo/Title */}
-                <div className="text-center mb-8">
-                    <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl shadow-lg shadow-blue-500/30 mb-4">
-                        <LogIn className="w-8 h-8 text-white" />
+        <div className="min-h-screen flex items-center justify-center bg-[#F2F2F7] dark:bg-black transition-colors duration-500">
+            <div className="w-full max-w-[400px] px-6">
+
+                {/* Header Icon */}
+                <div className="flex flex-col items-center mb-10 space-y-4">
+                    <div className="w-20 h-20 bg-white dark:bg-[#1C1C1E] rounded-[24px] shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none flex items-center justify-center mb-2 animate-in zoom-in-50 duration-500">
+                        <div className="w-12 h-12 bg-gradient-to-tr from-blue-500 to-cyan-500 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20">
+                            <Apple className="w-7 h-7 text-white fill-current" />
+                        </div>
                     </div>
-                    <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-                        Bienvenido de nuevo
-                    </h1>
-                    <p className="text-gray-600 dark:text-gray-400">
-                        Inicia sesión para gestionar tus diagramas
-                    </p>
+                    <div className="text-center space-y-1">
+                        <h1 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">
+                            GraphicAI
+                        </h1>
+                        <p className="text-[15px] text-gray-500 dark:text-gray-400 font-medium">
+                            Tu espacio creativo inteligente
+                        </p>
+                    </div>
                 </div>
 
-                {/* Login Form */}
-                <div className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-2xl border border-white/20 dark:border-gray-700/30 rounded-3xl shadow-2xl p-8">
-                    <form onSubmit={handleSubmit} className="space-y-6">
+                {/* Main Card */}
+                <div className="bg-white dark:bg-[#1C1C1E] rounded-[28px] shadow-[0_20px_40px_-12px_rgba(0,0,0,0.08)] dark:shadow-none overflow-hidden animate-in slide-in-from-bottom-4 duration-700">
+                    <form onSubmit={handleSubmit} className="p-8 space-y-6">
+
                         {error && (
-                            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 px-4 py-3 rounded-xl text-sm">
+                            <div className="bg-red-50 dark:bg-red-900/10 text-red-600 dark:text-red-400 px-4 py-3 rounded-2xl text-[13px] font-medium text-center animate-in shake">
                                 {error}
                             </div>
                         )}
 
-                        {/* Email Input */}
-                        <div>
-                            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                                Email
-                            </label>
-                            <div className="relative">
-                                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                                <input
-                                    type="email"
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
-                                    required
-                                    className="w-full pl-11 pr-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 dark:text-white placeholder-gray-400 transition-all"
-                                    placeholder="tu@email.com"
-                                />
+                        <div className="space-y-4">
+                            {/* Email */}
+                            <div className="group">
+                                <label className="block text-[13px] font-semibold text-gray-500 dark:text-gray-400 mb-2 ml-1">
+                                    Email
+                                </label>
+                                <div className="relative transition-transform duration-200 focus-within:scale-[1.02]">
+                                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                                        <Mail className="h-5 w-5 text-gray-400 group-focus-within:text-blue-500 transition-colors" />
+                                    </div>
+                                    <input
+                                        type="email"
+                                        value={email}
+                                        onChange={(e) => setEmail(e.target.value)}
+                                        required
+                                        className="block w-full pl-11 pr-4 py-3.5 bg-[#F2F2F7] dark:bg-[#2C2C2E] border-none rounded-2xl text-[17px] text-gray-900 dark:text-white placeholder-gray-400 focus:ring-0 focus:bg-[#E5E5EA] dark:focus:bg-[#3A3A3C] transition-all"
+                                        placeholder="ejemplo@icloud.com"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Password */}
+                            <div className="group">
+                                <label className="block text-[13px] font-semibold text-gray-500 dark:text-gray-400 mb-2 ml-1">
+                                    Contraseña
+                                </label>
+                                <div className="relative transition-transform duration-200 focus-within:scale-[1.02]">
+                                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                                        <Lock className="h-5 w-5 text-gray-400 group-focus-within:text-blue-500 transition-colors" />
+                                    </div>
+                                    <input
+                                        type="password"
+                                        value={password}
+                                        onChange={(e) => setPassword(e.target.value)}
+                                        required
+                                        className="block w-full pl-11 pr-4 py-3.5 bg-[#F2F2F7] dark:bg-[#2C2C2E] border-none rounded-2xl text-[17px] text-gray-900 dark:text-white placeholder-gray-400 focus:ring-0 focus:bg-[#E5E5EA] dark:focus:bg-[#3A3A3C] transition-all"
+                                        placeholder="••••••••"
+                                    />
+                                </div>
                             </div>
                         </div>
 
-                        {/* Password Input */}
-                        <div>
-                            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                                Contraseña
-                            </label>
-                            <div className="relative">
-                                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                                <input
-                                    type="password"
-                                    value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
-                                    required
-                                    className="w-full pl-11 pr-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 dark:text-white placeholder-gray-400 transition-all"
-                                    placeholder="••••••••"
-                                />
-                            </div>
-                        </div>
-
-                        {/* Submit Button */}
                         <button
                             type="submit"
                             disabled={loading}
-                            className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white font-semibold py-3 px-6 rounded-xl shadow-lg shadow-blue-500/30 hover:shadow-xl hover:shadow-blue-500/40 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                            className="w-full bg-[#007AFF] hover:bg-[#0071E3] active:scale-95 text-white font-semibold text-[17px] py-3.5 rounded-2xl shadow-lg shadow-blue-500/30 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 group"
                         >
                             {loading ? (
-                                <>
-                                    <Loader2 className="w-5 h-5 animate-spin" />
-                                    <span>Iniciando sesión...</span>
-                                </>
+                                <Loader2 className="w-5 h-5 animate-spin" />
                             ) : (
                                 <>
-                                    <LogIn className="w-5 h-5" />
                                     <span>Iniciar Sesión</span>
+                                    <ChevronRight className="w-4 h-4 opacity-60 group-hover:translate-x-0.5 transition-transform" />
                                 </>
                             )}
                         </button>
                     </form>
+                </div>
 
-                    {/* Register Link */}
-                    <div className="mt-6 text-center">
-                        <p className="text-sm text-gray-600 dark:text-gray-400">
-                            ¿No tienes una cuenta?{' '}
-                            <Link
-                                href="/register"
-                                className="font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
-                            >
-                                Regístrate aquí
-                            </Link>
-                        </p>
+                {/* Footer Links */}
+                <div className="mt-8 text-center space-y-4 animate-in fade-in duration-1000 delay-300">
+                    <p className="text-[14px] text-gray-500 dark:text-gray-400">
+                        ¿No tienes una cuenta?{' '}
+                        <Link
+                            href="/register"
+                            className="text-[#007AFF] font-medium hover:text-[#0071E3] transition-colors"
+                        >
+                            Regístrate
+                        </Link>
+                    </p>
+                    <div className="flex justify-center gap-6 text-[12px] text-gray-400">
+                        <Link href="#" className="hover:text-gray-600 dark:hover:text-gray-300 transition-colors">Privacidad</Link>
+                        <Link href="#" className="hover:text-gray-600 dark:hover:text-gray-300 transition-colors">Términos</Link>
+                        <Link href="#" className="hover:text-gray-600 dark:hover:text-gray-300 transition-colors">Ayuda</Link>
                     </div>
                 </div>
             </div>
